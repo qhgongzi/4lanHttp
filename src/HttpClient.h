@@ -1,28 +1,29 @@
 #pragma once
-#include "Http.h"
-#include <boost\asio.hpp>
-#include <boost\bind.hpp>
-#include <boost\asio\ssl.hpp>
-#include <boost\asio\deadline_timer.hpp>
+#include "common.h"
+#include "WebRequest.h"
+#include "WebRespone.h"
+#include <boost/bind.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/asio/deadline_timer.hpp>
 
 using  boost::asio::ip::tcp;
 
 class CHttpClient
 {
 public:
-    typedef boost::function<void(CHttpClient*,char*,std::string,int)> IoCallBack;
-	CHttpClient(IoCallBack httpback,boost::asio::io_service& io_service);
+	typedef	boost::function<void(boost::shared_ptr<ClientResult> result)> ClientCallBack;
+
+	
+	boost::shared_ptr<ClientResult> Send(CWebRequest *request);
+	void Send(CWebRequest *request,ClientCallBack cb);
+	void check_deadline(boost::system::error_code err);
+	boost::asio::deadline_timer deadline_;
+	bool bStop;//能否销毁类的标记
+	ClientCallBack mHttpBack;
+
 	CHttpClient(boost::asio::io_service& io_service);
 	~CHttpClient(void);
-	void Send(int protocol, std::string Host, std::string port, char * body ,size_t bodyLen );
-	int SynSend(int protocol, std::string Host, std::string port, char * body ,size_t bodyLen );
-	boost::asio::deadline_timer deadline_;
-	void check_deadline(boost::system::error_code err);
-	bool bStop;//能否销毁类的标记
-	IoCallBack mHttpBack;
-	char* m_respone;
-	size_t m_resLen;
-	std::string m_header;
 
 private:
 	tcp::socket socket_;
@@ -34,10 +35,10 @@ private:
 	char recv[2000];
 	int nHeaderLen;
 	int nContentLen;
+	char* m_readBuf;
 
-	char* m_body;
-	size_t m_bodyLen;
-
+	CWebRequest *m_request;
+	boost::shared_ptr<ClientResult> m_respone;
 	
 	int nTimeOut;
 
@@ -49,8 +50,6 @@ private:
 	void handle_HeaderRead(boost::system::error_code err,size_t bytes_transfarred);
 	void handle_ContentRead(boost::system::error_code err,size_t bytes_transfarred);
 	void handle_chunkRead(boost::system::error_code err,size_t bytes_transfarred);
-
-	void readBody();
-
+	boost::shared_ptr<ClientResult> readBody();
 };
 

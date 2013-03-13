@@ -1,78 +1,7 @@
-#include "stdafx.h"
 #include "weblib.h"
 
 namespace weblib
 {
-	int weblib::Utf8ToAnsi(const char* buf,char **newbuf)
-	{
-		int nLen = ::MultiByteToWideChar(CP_UTF8,0,buf,-1,NULL,0);  //返回需要的unicode长度  
-    
-		WCHAR * wszANSI = new WCHAR[nLen+1];  //释放没？
-		memset(wszANSI, 0, nLen * 2 + 2);  
-    
-		nLen = MultiByteToWideChar(CP_UTF8, 0, buf, -1, wszANSI, nLen);    //把utf8转成unicode  
-      
-		nLen = WideCharToMultiByte(CP_ACP, 0, wszANSI, -1, NULL, 0, NULL, NULL);        //得到要的ansi长度  
-   
-		*newbuf=new char[nLen + 1];  
-		memset(*newbuf, 0, nLen + 1);  
-		WideCharToMultiByte (CP_ACP, 0, wszANSI, -1, *newbuf, nLen, NULL,NULL);          //把unicode转成ansi  
-
-		delete wszANSI;
-      
-		return nLen;  
-
-	}
-
-	std::string weblib::Utf8Encode(const std::string&szToEncode)
-	{
-		std::string src=szToEncode;
-		std::string dst;
-
-		int nLen=::MultiByteToWideChar(CP_ACP, NULL, src.c_str(), -1, NULL, 0);
-
-		WCHAR * wszANSI = new WCHAR[nLen+1];  //释放没？
-		memset(wszANSI, 0, nLen * 2 + 2);  
-
-		nLen = MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, wszANSI, nLen);    //把utf8转成unicode  
-      
-		nLen = WideCharToMultiByte(CP_UTF8, 0, wszANSI, -1, NULL, 0, NULL, NULL); 
-
-		char *szutf8=new char[nLen+1];
-		ZeroMemory(szutf8,nLen+1);
-
-		WideCharToMultiByte (CP_UTF8, 0, wszANSI, -1, szutf8, nLen, NULL,NULL);
-
-		dst=szutf8;
-		delete[] wszANSI;
-		delete[] szutf8;
-		return dst;
-	}
-
-	std::string weblib::Utf8Decode(const std::string&szToDecode)
-	{
-		std::string src=szToDecode;
-		std::string dst;
-
-		int nLen=::MultiByteToWideChar(CP_UTF8, NULL, src.c_str(), -1, NULL, 0);
-
-		WCHAR * wszANSI = new WCHAR[nLen+1];  //释放没？
-		memset(wszANSI, 0, nLen * 2 + 2);  
-
-		nLen = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, wszANSI, nLen);    //把utf8转成unicode  
-
-		nLen = WideCharToMultiByte(CP_ACP, 0, wszANSI, -1, NULL, 0, NULL, NULL); 
-		char *szansi=new char[nLen+1];
-		ZeroMemory(szansi,nLen+1);
-
-		WideCharToMultiByte (CP_ACP, 0, wszANSI, -1, szansi, nLen, NULL,NULL);
-		
-		dst=szansi;
-		delete[] wszANSI;
-		delete[] szansi;
-		return dst;
-		
-	}
 
 	std::string weblib::UrlEncode(const std::string& szToEncode)
 	{
@@ -163,48 +92,6 @@ namespace weblib
 	}  
 
 
-    //加密函数
-    std::string weblib::string_md5(std::string str)
-    {
-        unsigned char md[16];
-        char tmp[33]={'\0'};
-        std::string hash="";
-
-        MD5((const unsigned char*)str.c_str(), str.size(), md);
-
-        for(int i=0; i<16; i++){
-            sprintf_s(tmp, "%02X", md[i]);
-            hash+=(std::string)tmp;
-        }
-        boost::to_lower(hash);
-        return hash;
-    }
-
-    std::string weblib::file_md5(std::string file_name)
-    {
-        MD5_CTX md5;
-        unsigned char md[16];
-        char tmp[33]={'\0'};
-        int length,i;
-        char buffer[1024];
-        string hash="";
-        MD5_Init(&md5);
-        ifstream fin(file_name.c_str(),ios::in|ios::binary);
-        while(!fin.eof())
-        {
-            fin.read(buffer, 1024);
-            length = fin.gcount();
-            if (length > 0) {
-                MD5_Update(&md5,buffer, length);
-            }
-        }
-        MD5_Final(md,&md5);
-        for(i=0; i<16; i++){
-            sprintf_s(tmp, "%02X", md[i]);
-            hash+=(string)tmp;
-        }
-        return hash;
-    }
 
     std::string weblib::base64Encode(const unsigned char * Data,int DataByte)
     {

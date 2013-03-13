@@ -1,367 +1,154 @@
-#include "StdAfx.h"
 #include "Http.h"
-#include "HttpClient.h"
 #include "CIoPool.h"
-#include "weblib.h"
-#include <fstream>
-#include <boost\algorithm\string.hpp>
 
 
-CHttp::CHttp()
+CHttp::CHttp(void)
 {
 	this->m_ioServ=&CIoPool::Instance(4)->io;
-	m_request["User-Agent"]="Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)";
-	m_request["Accept-Language"]="zh-cn";
-	m_request["Accept"]="*/*";
-	m_request["Connection"]="Keep-Alive";
-	m_request["Content-Type"]="text/html";
 }
+
 
 CHttp::~CHttp(void)
 {
-
 }
 
-void CHttp::Send(std::string method,std::string url,std::string pstr,FuncCallBack funcBack)
-{
+boost::shared_ptr<CWebRespone> CHttp::Get(std::string url){
 
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=(url.find("https://")!=std::string::npos)?1:0;
-	std::string port=this->GetPortByUrl(url);
+	boost::shared_array<char> data;
+	this->Request.BuildBody("GET",url,data,0);
 
-	char * data=NULL;
-	size_t dataLen=0;
+	CHttpClient client(*m_ioServ);
 
-	dataLen=pstr.length();
-	data=new char[dataLen];
-	memcpy(data,pstr.c_str(),dataLen);
+	boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
+	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
 
-	dataLen=this->BuildHttpBody(method,url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(boost::bind(&CHttp::MessageCallBack,this,_1,_2,_3,_4,funcBack),*m_ioServ);
-
-	httpclient->Send(ssl,host,port,data,dataLen);
-	this->m_request["Referer"]=url;
-
+	return respone;
 }
 
-void CHttp::Send(std::string method, std::string url,char * data, size_t dataLen,FuncCallBack funcBack)
+boost::shared_ptr<CWebRespone> CHttp::Post(std::string url,std::string data)
 {
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=(url.find("https://")!=std::string::npos)?1:0;
-	std::string port=this->GetPortByUrl(url);
+	char * dataAry=new char (data.length());
+	memset(dataAry,0,data.length());
+	memcpy(dataAry,data.c_str(),data.length());
 
-	dataLen=this->BuildHttpBody(method,url, data , dataLen);
+	boost::shared_array<char> postdata(dataAry);
+	this->Request.BuildBody("POST",url,postdata,data.length());
 
-	CHttpClient *httpclient=new CHttpClient(boost::bind(&CHttp::MessageCallBack,this,_1,_2,_3,_4,funcBack),*m_ioServ);
+	CHttpClient client(*m_ioServ);
 
-	httpclient->Send(ssl,host,port,data,dataLen);
-	this->m_request["Referer"]=url;
+	boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
+	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+
+	return respone;
 }
 
-//普通GET
-void CHttp::AsyGet(std::string url,FuncCallBack funcBack)
+boost::shared_ptr<CWebRespone> CHttp::Get(std::string ip,std::string port,std::string url)
 {
+	boost::shared_array<char> data;
+	this->Request.BuildProxyBody("GET",ip,port,url,data,0);
 
-	this->Send("GET",url,"",funcBack);
+	CHttpClient client(*m_ioServ);
+
+	boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
+	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+
+	return respone;
 }
 
-void CHttp::AsyDelete(std::string url,FuncCallBack funcBack)
+boost::shared_ptr<CWebRespone> CHttp::Post(std::string ip,std::string port,std::string url,std::string data)
 {
+	char * dataAry=new char (data.length());
+	memset(dataAry,0,data.length());
+	memcpy(dataAry,data.c_str(),data.length());
 
-	this->Send("DELETE",url,"",funcBack);
-}
+	boost::shared_array<char> postdata(dataAry);
+	this->Request.BuildProxyBody("POST",ip,port,url,postdata,data.length());
 
-//普通post
-void CHttp::AsyPost(std::string url,std::string postData,FuncCallBack funcBack)
-{
-	this->Send("POST",url,postData,funcBack);
+	CHttpClient client(*m_ioServ);
 
-}
+	boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
+	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
 
-//代理GET
-void CHttp::AsyGet(std::string ip,std::string port,std::string url,FuncCallBack funcBack)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=0;//不是ssl连接
-
-	char * data=NULL;
-	size_t bodySize=this->BuildHttpBody("GET",url,data,0);
-
-	CHttpClient *httpclient=new CHttpClient(boost::bind(&CHttp::MessageCallBack,this,_1,_2,_3,_4,funcBack),*m_ioServ);
-
-	httpclient->Send(ssl,ip,port,data,bodySize);
-	this->m_request["Referer"]=url;
-}
-
-//代理POST
-void CHttp::AsyPost(std::string ip,std::string port,std::string url,std::string postData,FuncCallBack funcBack)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=0;//不是ssl连接
-
-	char * data=NULL;
-	size_t dataLen=0;
-	dataLen=postData.length();
-	data=new char[dataLen];
-	memcpy(data,postData.c_str(),dataLen); //构造post表单数据
-
-	dataLen=this->BuildHttpBody("POST",url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(boost::bind(&CHttp::MessageCallBack,this,_1,_2,_3,_4,funcBack),*m_ioServ);
-
-	httpclient->Send(ssl,ip,port,data,dataLen);
-
-	this->m_request["Referer"]=url;
-
-}
-
-std::string CHttp::Get(std::string url)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=(url.find("https://")!=std::string::npos)?1:0;
-	std::string port=this->GetPortByUrl(url);
-
-	char * data=NULL;
-	size_t dataLen=0;
-
-
-	dataLen=this->BuildHttpBody("GET",url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(*m_ioServ);
-
-	int nCode=httpclient->SynSend(ssl,host,port,data,dataLen);
-
-	this->BuildRespone(httpclient->m_header);
-	this->BuildCookie(httpclient->m_header);
-	this->m_request["Referer"]=url;
-
-	if(nCode==0&&httpclient->m_respone!=NULL){
-		std::string msg=(httpclient->m_respone!=NULL)?httpclient->m_respone:"";
-		delete httpclient;
-		return msg;
-	}else{
-		std::string msg=httpclient->m_header;
-		delete httpclient;
-		return msg;
-	}
-
-
-
-}
-
-std::string CHttp::Post(std::string url,std::string pstr)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=(url.find("https://")!=std::string::npos)?1:0;
-	std::string port=this->GetPortByUrl(url);
-
-	char * data=NULL;
-	size_t dataLen=0;
-
-	dataLen=pstr.length();
-	data=new char[dataLen];
-	memcpy(data,pstr.c_str(),dataLen);
-
-	dataLen=this->BuildHttpBody("POST",url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(*m_ioServ);
-
-	int nCode=httpclient->SynSend(ssl,host,port,data,dataLen);
-
-	this->BuildRespone(httpclient->m_header);
-	this->BuildCookie(httpclient->m_header);
-	this->m_request["Referer"]=url;
-
-	if(nCode==0){
-		std::string msg=(httpclient->m_respone!=NULL)?httpclient->m_respone:"";
-		delete httpclient;
-		return msg;
-	}else{
-		std::string msg=httpclient->m_header;
-		delete httpclient;
-		return msg;
-	}
-
-}
-
-//代理GET
-std::string CHttp::Get(std::string ip,std::string port,std::string url)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=0;//不是ssl连接
-
-	char * data=NULL;
-	size_t bodySize=this->BuildHttpBody("GET",url,data,0);
-
-	CHttpClient *httpclient=new CHttpClient(*m_ioServ);
-
-	int nCode=httpclient->SynSend(ssl,ip,port,data,bodySize);
-
-	this->BuildRespone(httpclient->m_header);
-	this->BuildCookie(httpclient->m_header);
-	this->m_request["Referer"]=url;
-
-	if(nCode==0){
-		std::string msg=(httpclient->m_respone!=NULL)?httpclient->m_respone:"";
-		delete httpclient;
-		return msg;
-	}else{
-		std::string msg=httpclient->m_header;
-		delete httpclient;
-		return msg;
-	}
-}
-
-//代理POST
-std::string CHttp::Post(std::string ip,std::string port,std::string url,std::string postData)
-{
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=0;//不是ssl连接
-
-	char * data=NULL;
-	size_t dataLen=0;
-	dataLen=postData.length();
-	data=new char[dataLen];
-	memcpy(data,postData.c_str(),dataLen); //构造post表单数据
-
-	dataLen=this->BuildHttpBody("POST",url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(*m_ioServ);
-
-	int nCode=httpclient->SynSend(ssl,ip,port,data,dataLen);
-
-	this->BuildRespone(httpclient->m_header);
-	this->BuildCookie(httpclient->m_header);
-	this->m_request["Referer"]=url;
-
-	if(nCode==0){
-		std::string msg=(httpclient->m_respone!=NULL)?httpclient->m_respone:"";
-		delete httpclient;
-		return msg;
-	}else{
-		std::string msg=httpclient->m_header;
-		delete httpclient;
-		return msg;
-	}
-
+	return respone;
 }
 
 
-void CHttp::MessageCallBack(CHttpClient* sender, char* retnMsg, std::string header, int ContentLen,FuncCallBack funback)
+void CHttp::Get(std::string url,HttpCallBack cb)
 {
-	if(sender!=NULL)
+	boost::shared_array<char> data;
+	this->Request.BuildBody("GET",url,data,0);
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+void CHttp::Post(std::string url,std::string data,HttpCallBack cb)
+{
+	char * dataAry=new char (data.length());
+	memset(dataAry,0,data.length());
+	memcpy(dataAry,data.c_str(),data.length());
+
+	boost::shared_array<char> postdata(dataAry);
+	this->Request.BuildBody("POST",url,postdata,data.length());
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+void CHttp::Get(std::string ip,std::string port,std::string	url,HttpCallBack cb)
+{
+	boost::shared_array<char> data;
+	this->Request.BuildProxyBody("GET",ip,port,url,data,0);
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+void CHttp::Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
+{
+	char * dataAry=new char (data.length());
+	memset(dataAry,0,data.length());
+	memcpy(dataAry,data.c_str(),data.length());
+
+	boost::shared_array<char> postdata(dataAry);
+	this->Request.BuildProxyBody("POST",ip,port,url,postdata,data.length());
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+
+void CHttp::BuildHeader(boost::shared_ptr<CWebRespone> respone,std::string header)
+{
+	if(header.find("HTTP")!=std::string::npos)
 	{
-		while (sender->bStop==false)
+		std::string h=header.substr(header.find(" ")+1);
+		h=h.substr(0,h.find(" "));
+		respone->statusCode=weblib::convert<int,std::string>(h);
+
+		boost::smatch result;
+		std::string regtxt("\\b(\\w+?): (.*?)\r\n");
+		boost::regex rx(regtxt);
+
+		std::string::const_iterator it=header.begin();
+		std::string::const_iterator end=header.end();
+
+		while (regex_search(it,end,result,rx))
 		{
-			Sleep(2);
-		}	
-	}
-
-	this->BuildCookie(header);
-	this->BuildRespone(header);
-
-	if(funback!=NULL)
-	{
-		funback(this->m_respone,retnMsg,ContentLen);
-	}
-	delete retnMsg;
-	delete sender;
-	sender=NULL;
-	
-}
-
-
-size_t CHttp::BuildHttpBody(std::string method, std::string url, char * &data ,size_t dataLen)
-{
-	std::string turl=url;//保存url
-
-	std::string host=weblib::substr(url,"://","/");
-	url=url.substr(url.find(host)+host.length());
-	if(url=="") url="/";
-	std::string body;
-
-	if(method=="POST")
-	{
-		char len[20];
-		::sprintf_s(len,"%d",dataLen);
-		m_request["Content-Type"]="application/x-www-form-urlencoded";
-		m_request["Content-Length"]=std::string(len);
-	}else{
-		m_request["Content-Type"]="";
-		m_request["Content-Length"]="";
-	}
-
-	body=method+" "+url+" HTTP/1.1\r\n";
-
-	std::map<std::string,std::string>::iterator itr=m_request.begin();
-
-	for(;itr!=m_request.end();itr++)
-	{
-		if(itr->second!="")
-			body+=itr->first+": "+itr->second+"\r\n";
-	}
-	body+="Host: "+host+"\r\n";
-
-	body+="\r\n";
-	size_t len=0;
-
-	if(dataLen>0)
-	{
-		len=body.length()+dataLen;
-		char * newdata=new char[len];
-		ZeroMemory(newdata,len);
-		memcpy(newdata,body.c_str(),body.length());
-		memcpy(newdata+body.length(),data,dataLen);
-		delete data;
-		data=newdata;
+			std::string key=result[1];
+			std::string value=result[2];
+			respone->header[key]=value;
+			it=result[0].second;
+		}
 	}else
 	{
-		len=body.length();
-		data=new char[len];
-		ZeroMemory(data,len);
-		memcpy(data,body.c_str(),len);
+		respone->statusCode=-1;
 	}
-
-	m_respone.clear();
-
-	return len;
-
 }
-
-
-std::string CHttp::GetPortByUrl(std::string url)
-{
-	bool ssl=false;
-	if(url.find("http://")!=std::string::npos)
-	{
-		url=url.substr(7);
-		ssl=false;
-	}
-	if(url.find("https://")!=std::string::npos)
-	{
-		url=url.substr(8);
-		ssl=true;
-	}
-
-	std::string port=url.substr(0,url.find_first_of('/'));
-	if(port.find(":")!=std::string::npos)
-	{
-		port=port.substr(port.find_first_of(':'));
-	}
-	else if(ssl)
-	{
-		port="443";
-	}
-	else
-	{
-		port="80";
-	}
-
-	return port;
-
-}
-
 
 void CHttp::BuildCookie(std::string header)
 {
@@ -377,15 +164,15 @@ void CHttp::BuildCookie(std::string header)
 		std::string cookie_key=result[1];
 		std::string cookie_value=result[2];
 
-		if (m_request["Cookie"].find(cookie_key)==std::string::npos)
+		if (Request.m_cookies.find(cookie_key)==std::string::npos)
 		{
-			m_request["Cookie"]+=cookie_key+"="+cookie_value+"; ";
+			Request.m_cookies+=cookie_key+"="+cookie_value+"; ";
 		}
 		else
 		{
 			std::string reg="("+cookie_key+")=(.*?);";
 			boost::regex regrep(reg,    boost::regex::icase|boost::regex::perl);
-			m_request["Cookie"]=boost::regex_replace(m_request["Cookie"],regrep,"$1="+cookie_value+";");
+			Request.m_cookies=boost::regex_replace(Request.m_cookies,regrep,"$1="+cookie_value+";");
 		}
 
 		it=result[0].second;
@@ -393,98 +180,35 @@ void CHttp::BuildCookie(std::string header)
 
 }
 
-void CHttp::FakeIp(void)
+boost::shared_ptr<CWebRespone> CHttp::buildRespone(boost::shared_ptr<ClientResult> result)
 {
-	srand( (unsigned)time( NULL ) );
-	std::string ip;
-	char cip[5];
+	boost::shared_ptr<CWebRespone> respone(new CWebRespone);
+	respone->errMsg=result->errMsg;
+	respone->errorCode=result->errorCode;
+	respone->headerText=result->header;
+	respone->msg=result->msg;
+	respone->len=result->len;
 
-	sprintf_s(cip,"%d",rand()%253+1);
-	ip=cip;
-	ip+=".";
-
-	sprintf_s(cip,"%d",rand()%253+1);
-	ip+=cip;
-	ip+=".";
-
-	sprintf_s(cip,"%d",rand()%253+1);
-	ip+=cip;
-	ip+=".";
-
-	sprintf_s(cip,"%d",rand()%253+1);
-	ip+=cip;
-
-	m_request["X-Forwarded-For"]=ip;
-
-}
-
-
-void CHttp::BuildRespone(std::string header)
-{
-	if(header.find("HTTP")!=std::string::npos)
-	{
-		std::string h=header.substr(header.find(" ")+1);
-		h=h.substr(0,h.find(" "));
-		this->m_respone["responeCode"]=h;
-
-		boost::smatch result;
-		std::string regtxt("\\b(\\w+?): (.*?)\r\n");
-		boost::regex rx(regtxt);
-
-		std::string::const_iterator it=header.begin();
-		std::string::const_iterator end=header.end();
-
-		while (regex_search(it,end,result,rx))
-		{
-			std::string key=result[1];
-			std::string value=result[2];
-			m_respone[key]=value;
-			it=result[0].second;
-		}
-	}else
-	{
-		this->m_respone["responeCode"]="-1";
+	if(result->errorCode==0 && result->header!=""){
+		this->BuildCookie(result->header);
+		this->BuildHeader(respone,result->header);
 	}
+	return respone;
 }
 
 
 
-bool CHttp::GetFile(std::string url, std::string path)
+void CHttp::MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,CHttpClient *client)
 {
-	std::string host=weblib::substr(url,"://","/");
-	int ssl=(url.find("https://")!=std::string::npos)?1:0;
-	std::string port=this->GetPortByUrl(url);
+	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
 
-	char * data=NULL;
-	size_t dataLen=0;
-
-
-	dataLen=this->BuildHttpBody("GET",url, data , dataLen);
-
-	CHttpClient *httpclient=new CHttpClient(*m_ioServ);
-
-	int nCode=httpclient->SynSend(ssl,host,port,data,dataLen);
-
-	this->BuildRespone(httpclient->m_header);
-	this->BuildCookie(httpclient->m_header);
-
-	if(nCode==0&&httpclient->m_respone!=NULL){
-		std::ofstream fs(path,ios::binary);
-		if(fs.is_open()){
-			fs.write(httpclient->m_respone,httpclient->m_resLen);
-			fs.close();
-			delete httpclient;
-			return true;
-		}else{
-			return false;
-		}
-
-	}else{
-		delete httpclient;
-		return false;
+	if(cb!=NULL)
+	{
+		cb(respone);
 	}
-
-
-
-	return false;
+	if(client!=NULL)
+	{
+		delete client;
+		client=NULL;
+	}
 }

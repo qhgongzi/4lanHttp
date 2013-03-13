@@ -1,54 +1,33 @@
-#include "StdAfx.h"
 #include "HttpClient.h"
 #include <iostream>
 
 #pragma comment( lib, "libeay32.lib" )
 #pragma comment( lib, "ssleay32.lib" )
 
-CHttpClient::CHttpClient(IoCallBack httpback,boost::asio::io_service& io_service)
-	:socket_(io_service),
-	mHttpBack(httpback),
-	resolver_(io_service),
-	ctx(boost::asio::ssl::context::sslv23),
-	ssl_sock(socket_,ctx),
-	protocol_(0),
-	deadline_(io_service)
-{
-	nTimeOut=10000;
-	bStop=true;
-	m_body=NULL;
-	m_bodyLen=0;
-	m_respone=NULL;
-}
-
 CHttpClient::CHttpClient(boost::asio::io_service& io_service)
 	:socket_(io_service),
 	resolver_(io_service),
 	ctx(boost::asio::ssl::context::sslv23),
 	ssl_sock(socket_,ctx),
-	protocol_(0),
 	deadline_(io_service)
 {
-	nTimeOut=6000;
+	nTimeOut=10000;
 	bStop=true;
-	m_body=NULL;
-	m_bodyLen=0;
-	m_respone=NULL;
+	m_respone=boost::shared_ptr<ClientResult>(new ClientResult);
+	m_readBuf=NULL;
 }
 
 CHttpClient::~CHttpClient(void)
 {
-	if(m_body!=NULL)
-	{
-		delete m_body;
-	}
-
+	
 }
 
 
-void CHttpClient::Send(int protocol, std::string Host, std::string port, char* body,size_t bodyLen)
+void CHttpClient::Send(CWebRequest *request,ClientCallBack cb)
 {
-	tcp::resolver::query query(Host,port);
+	this->m_request=request;
+	this->mHttpBack=cb;
+	tcp::resolver::query query(request->m_ip,request->m_port);
 
 	if (deadline_.expires_from_now(boost::posix_time::seconds(nTimeOut))>=0)
 		deadline_.async_wait(boost::bind(&CHttpClient::check_deadline, this,boost::asio::placeholders::error));
@@ -59,59 +38,54 @@ void CHttpClient::Send(int protocol, std::string Host, std::string port, char* b
 		boost::asio::placeholders::error,
 		boost::asio::placeholders::iterator));
 	//保存发送的包体
-	m_body=body;
-	m_bodyLen=bodyLen;
+
 
 	//如果协议是ssl，就进行认证
-	if(protocol==1)
+	if(request->m_isSSL==true)
 	{
 		protocol_=1;
 		ssl_sock.set_verify_mode(boost::asio::ssl::verify_peer);
 		ssl_sock.set_verify_callback(boost::bind(&CHttpClient::verify_certificate,this,_1,_2));
-
-
 	}
 
 }
 
-int CHttpClient::SynSend(int protocol, std::string Host, std::string port, char* body,size_t bodyLen)
+boost::shared_ptr<ClientResult> CHttpClient::Send(CWebRequest *request)
 {
-	tcp::resolver::query query(Host,port);
+	this->m_request=request;
+	tcp::resolver::query query(request->m_ip,request->m_port);
 
 	//解析域名。
 	tcp::resolver::iterator endpoint_iterator =resolver_.resolve(query);
 	//保存发送的包体
-	m_body=body;
-	m_bodyLen=bodyLen;
 
 	try{
 		boost::asio::connect(socket_,endpoint_iterator);
 
 		//如果协议是ssl，就进行认证
-		if(protocol==1){
+		if(request->m_isSSL==true){
 			protocol_=1;
 			ssl_sock.set_verify_mode(boost::asio::ssl::verify_peer);
 			ssl_sock.set_verify_callback(boost::bind(&CHttpClient::verify_certificate,this,_1,_2));
 			ssl_sock.handshake(boost::asio::ssl::stream_base::client);
-			boost::asio::write(ssl_sock,boost::asio::buffer(m_body,m_bodyLen));
+			boost::asio::write(ssl_sock,boost::asio::buffer(request->m_body.get(),request->m_bodySize));
 		}else{
-			boost::asio::write(socket_,boost::asio::buffer(m_body,m_bodyLen));
+			boost::asio::write(socket_,boost::asio::buffer(request->m_body.get(),request->m_bodySize));
 		}
 
-		this->readBody();
+		return this->readBody();
 
 	}
 	catch(const boost::system::error_code& ex)
 	{
-		this->m_header=ex.message();
-		return ex.value();
+		m_respone->errMsg=ex.message();
+		m_respone->errorCode=ex.value();//连接失败
+		return m_respone;
 	}
-
-	return 0;
 
 }
 
-void CHttpClient::readBody()
+boost::shared_ptr<ClientResult> CHttpClient::readBody()
 {
 	int headSize;
 	if(protocol_==1){
@@ -127,18 +101,18 @@ void CHttpClient::readBody()
 	int readSize=respone_.size();
 
 	char * head=new char[headSize+1];
-	ZeroMemory(head,headSize+1);
+	memset(head,0,headSize+1);
 	response_stream.read(head,headSize);
-	m_header=head;
+	m_respone->header=head;
 	delete head;
 
-	int rdContentSize=readSize-m_header.size();
+	int rdContentSize=readSize-m_respone->header.size();
 
 	char * cont=NULL;
 	//获取httpContent的长度
-	if(m_header.find("Content-Length")!=std::string::npos)
+	if(m_respone->header.find("Content-Length")!=std::string::npos)
 	{
-		std::string len=m_header.substr(m_header.find("Content-Length: ")+16);
+		std::string len=m_respone->header.substr(m_respone->header.find("Content-Length: ")+16);
 		len=len.substr(0,len.find_first_of("\r"));
 		nContentLen=atoi(len.c_str());
 
@@ -150,11 +124,11 @@ void CHttpClient::readBody()
 
 		nContentLen=respone_.size();
 		cont=new char[nContentLen+1]; //此处申请了内存，注意释放。
-		ZeroMemory(cont+nContentLen,1);
+		memset(cont+nContentLen,0,1);
 		response_stream.read(cont,nContentLen);
 
 	}
-	else if(m_header.find("Transfer-Encoding: chunked")!=std::string::npos)
+	else if(m_respone->header.find("Transfer-Encoding: chunked")!=std::string::npos)
 	{
 		while (true)
 		{
@@ -169,7 +143,7 @@ void CHttpClient::readBody()
 
 			char *chunkStr=new char[contSize]; //此处申请了内存，注意释放。
 			response_stream.read(chunkStr,contSize);
-			ZeroMemory(chunkStr+contSize-2,2);
+			memset(chunkStr+contSize-2,0,2);
 			long nextReadSize=strtol(chunkStr,NULL,16);
 			if(nextReadSize==0) break;
 			delete chunkStr;
@@ -188,11 +162,11 @@ void CHttpClient::readBody()
 
 			if(cont==NULL){
 				cont=htmlBuf;
-				ZeroMemory(htmlBuf+nextReadSize,2);
+				memset(htmlBuf+nextReadSize,0,2);
 				nContentLen=nextReadSize;
 			}else{
 				char * newCont=new char[nContentLen+nextReadSize+1];
-				ZeroMemory(newCont+nContentLen+nextReadSize,1);
+				memset(newCont+nContentLen+nextReadSize,0,1);
 				memcpy(newCont,cont,nContentLen);
 				memcpy(newCont+nContentLen,htmlBuf,nextReadSize);
 				delete  cont;
@@ -205,9 +179,13 @@ void CHttpClient::readBody()
 
 	}
 
+	boost::shared_array<char> content(cont);
+	
+	m_respone->errorCode=0;
+	m_respone->msg=content;
+	m_respone->len=nContentLen;
 
-	this->m_resLen=nContentLen;
-	this->m_respone=cont;
+	return m_respone;
 
 }
 
@@ -226,8 +204,9 @@ void CHttpClient::handle_resolver(boost::system::error_code err, tcp::resolver::
 	}
 	else
 	{
-
-		mHttpBack(this,NULL,"RESOLVERERR",0);
+		this->m_respone->errorCode=1;
+		this->m_respone->errMsg="解析域名失败";
+		mHttpBack(this->m_respone);
 	}
 }
 
@@ -252,14 +231,16 @@ void CHttpClient::handle_connect(boost::system::error_code err)
 		}
 		else
 		{
-			boost::asio::async_write(socket_,boost::asio::buffer(m_body,m_bodyLen),
+			boost::asio::async_write(socket_,boost::asio::buffer(m_request->m_body.get(),m_request->m_bodySize),
 				boost::bind(&CHttpClient::handle_write,this,boost::asio::placeholders::error,
 				boost::asio::placeholders::bytes_transferred));
 		}
 	}
 	else
 	{
-		mHttpBack(this,NULL,"CONNECTERR",0);
+		this->m_respone->errorCode=2;
+		this->m_respone->errMsg="连接失败";
+		mHttpBack(this->m_respone);
 	}
 }
 
@@ -271,13 +252,15 @@ void CHttpClient::handle_handshake(boost::system::error_code err)
 	{
 		if (deadline_.expires_from_now(boost::posix_time::seconds(nTimeOut))>=0)
 			deadline_.async_wait(boost::bind(&CHttpClient::check_deadline, this,boost::asio::placeholders::error));
-		boost::asio::async_write(ssl_sock,boost::asio::buffer(m_body,m_bodyLen),
+		boost::asio::async_write(ssl_sock,boost::asio::buffer(m_request->m_body.get(),m_request->m_bodySize),
 			boost::bind(&CHttpClient::handle_write,this,boost::asio::placeholders::error,
 			boost::asio::placeholders::bytes_transferred));
 	}
 	else
 	{
-		mHttpBack(this,NULL,"SHAKEERR",0);
+		this->m_respone->errorCode=3;
+		this->m_respone->errMsg="握手失败";
+		mHttpBack(this->m_respone);
 	}
 }
 
@@ -302,7 +285,9 @@ void CHttpClient::handle_write(boost::system::error_code err,size_t bytes_transf
 	}
 	else
 	{
-		mHttpBack(this,NULL,"WRITEERR",0);
+		this->m_respone->errorCode=4;
+		this->m_respone->errMsg="写入错误";
+		mHttpBack(this->m_respone);
 	}
 }
 
@@ -323,17 +308,17 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 		int readSize=respone_.size();
 
 		char * head=new char[bytes_transfarred+1];
-		ZeroMemory(head,bytes_transfarred+1);
+		memset(head,0,bytes_transfarred+1);
 		response_stream.read(head,bytes_transfarred);
-		m_header=head;
+		m_respone->header=head;
 		delete head;
 
-		int rdContentSize=readSize-m_header.size();
+		int rdContentSize=readSize-m_respone->header.size();
 
 		//获取httpContent的长度
-		if(m_header.find("Content-Length")!=std::string::npos)
+		if(m_respone->header.find("Content-Length")!=std::string::npos)
 		{
-			std::string len=m_header.substr(m_header.find("Content-Length: ")+16);
+			std::string len=m_respone->header.substr(m_respone->header.find("Content-Length: ")+16);
 			len=len.substr(0,len.find_first_of("\r"));
 			nContentLen=atoi(len.c_str());
 
@@ -353,7 +338,7 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 			}
 
 		}
-		else if(m_header.find("Transfer-Encoding: chunked")!=std::string::npos)
+		else if(m_respone->header.find("Transfer-Encoding: chunked")!=std::string::npos)
 		{
 			if(protocol_==1)
 			{
@@ -375,7 +360,9 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 	}
 	else
 	{
-		mHttpBack(this,NULL,"HEADREADERR",0);
+		this->m_respone->errorCode=5;
+		this->m_respone->errMsg="头部读取错误";
+		mHttpBack(this->m_respone);
 	}
 
 
@@ -394,18 +381,20 @@ void CHttpClient::handle_chunkRead(boost::system::error_code err,size_t bytes_tr
 
 		char *chunkStr=new char[contSize]; //此处申请了内存，注意释放。
 		response_stream.read(chunkStr,contSize);
-		ZeroMemory(chunkStr+contSize-2,2);
+		memset(chunkStr+contSize-2,0,2);
 		long nextReadSize=strtol(chunkStr,NULL,16);
 		delete chunkStr;
 		if(nextReadSize==0) 
 		{
-			std::string msg=m_respone;
-			mHttpBack(this,this->m_respone,m_header,nContentLen);
+			this->m_respone->errorCode=0;
+			this->m_respone->msg=boost::shared_array<char>(this->m_readBuf);
+			this->m_respone->len=this->nContentLen;
+			mHttpBack(this->m_respone);
 			return ;
 		}
 
 		char * htmlBuf=new char[nextReadSize+2];
-		ZeroMemory(htmlBuf,nextReadSize+2);
+		memset(htmlBuf,0,nextReadSize+2);
 		if(nextReadSize>readLen){
 			if(protocol_==1){
 				boost::asio::read(ssl_sock,respone_,boost::asio::transfer_at_least(nextReadSize-readLen+2));
@@ -417,18 +406,18 @@ void CHttpClient::handle_chunkRead(boost::system::error_code err,size_t bytes_tr
 		response_stream.read(htmlBuf,nextReadSize+2);
 		ZeroMemory(htmlBuf+nextReadSize,2);
 
-		if(this->m_respone==NULL){
-			this->m_respone=htmlBuf;
+		if(this->m_readBuf==NULL){
+			this->m_readBuf=htmlBuf;
 			nContentLen=nextReadSize;
 		}else{
 			char * newCont=new char[nContentLen+nextReadSize+1];
 			ZeroMemory(newCont,nContentLen+nextReadSize+1);
-			memcpy(newCont,this->m_respone,nContentLen);
+			memcpy(newCont,this->m_readBuf,nContentLen);
 			memcpy(newCont+nContentLen,htmlBuf,nextReadSize);
-			delete  this->m_respone;
+			delete  this->m_readBuf;
 			delete  htmlBuf;
 
-			this->m_respone=newCont;
+			this->m_readBuf=newCont;
 			nContentLen+=nextReadSize;
 		}
 
@@ -446,13 +435,15 @@ void CHttpClient::handle_chunkRead(boost::system::error_code err,size_t bytes_tr
 		}
 		catch(const boost::system::error_code& ex)
 		{
-			this->m_header=ex.message();
-			int a= ex.value();
-			a=1;
+			this->m_respone->errMsg=ex.message();
+			this->m_respone->errorCode= ex.value();
+			mHttpBack(this->m_respone);
 		}
 
 	}else{
-		mHttpBack(this,NULL,"CONTENTREADERR",0);
+		this->m_respone->errorCode=6;
+		this->m_respone->errMsg="内容读取错误";
+		mHttpBack(this->m_respone);
 	}
 
 }
@@ -468,14 +459,19 @@ void CHttpClient::handle_ContentRead(boost::system::error_code err,size_t bytes_
 		nContentLen=respone_.size();
 		//将数据流追加到header里
 		char *cont=new char[nContentLen+1]; //此处申请了内存，注意释放。
-		ZeroMemory(cont+nContentLen,1);
+		memset(cont+nContentLen,0,1);
 		response_stream.read(cont,nContentLen);
 
-		mHttpBack(this,cont,m_header,nContentLen);
+		this->m_respone->errorCode=0;
+		this->m_respone->msg=boost::shared_array<char>(cont);
+		this->m_respone->len=this->nContentLen;
+		mHttpBack(this->m_respone);
 
 	}else
 	{
-		mHttpBack(this,NULL,"CONTENTREADERR",0);
+		this->m_respone->errorCode=7;
+		this->m_respone->errMsg="内容读取错误";
+		mHttpBack(this->m_respone);
 	}
 }
 
@@ -494,5 +490,4 @@ void CHttpClient::check_deadline(boost::system::error_code err)
 		}
 
 	}
-
 }

@@ -1,7 +1,4 @@
 #pragma once
-#include "StdAfx.h"
-#include <Windows.h>
-#include <string>
 #include <sstream>
 #include <fstream>
 #include <openssl\md5.h>
@@ -31,11 +28,7 @@ namespace weblib
 		return result;
 	};
 
-	int Utf8ToAnsi(const char* buf,char **newbuf);
-
-	std::string Utf8Encode(const std::string&szToEncode);
-
-	std::string Utf8Decode(const std::string&szToDecode);
+	
 
 	std::string UrlEncode(const std::string& szToEncode);
 
@@ -45,10 +38,6 @@ namespace weblib
 
 	std::string  replace_all(std::string&   str,const   std::string&   old_value,const   std::string&   new_value);
 
-	//¼ÓÃÜº¯Êý
-	std::string string_md5(std::string str);
-
-	std::string file_md5(std::string file_name);
 
 	std::string base64Encode(const unsigned char * Data,int DataByte);
 

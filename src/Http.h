@@ -1,46 +1,45 @@
 #pragma once
+#include "common.h"
+#include "WebRespone.h"
+#include "WebRequest.h"
 #include <boost\regex.hpp>
-#include <boost\bind.hpp>
-#include <boost\asio.hpp>
-#include <boost\function.hpp>
-#include <map>
+#include "HttpClient.h"
 
-class CHttpClient;
 
 class CHttp
 {
 public:
-	typedef boost::function<void(std::map<std::string,std::string>,char*,int)> FuncCallBack;
-	CHttp();
+	CHttp(void);
 	~CHttp(void);
-	virtual void AsyGet(std::string url,FuncCallBack funcBack);
-	virtual void AsyDelete(std::string url,FuncCallBack funcBack);
-	virtual void AsyPost(std::string url,std::string postData,FuncCallBack funcBack);
-	virtual void AsyGet(std::string ip,std::string port,std::string url,FuncCallBack funcBack);
-	virtual void AsyPost(std::string ip,std::string port,std::string url,std::string postData,FuncCallBack funcBack);
-	
 
-	std::string Get(std::string url);
-	std::string Post(std::string url,std::string data);
-	std::string Get(std::string ip,std::string port,std::string url);
-	std::string Post(std::string ip,std::string port,std::string url,std::string postData);
-	bool GetFile(std::string url, std::string path);
+	typedef	boost::function<void(boost::shared_ptr<CWebRespone>)> HttpCallBack;
 
-	void BuildCookie(std::string header);
-	void FakeIp(void);
-	std::map<std::string,std::string> m_request;
-	std::map<std::string,std::string> m_respone;
+	boost::shared_ptr<CWebRespone> Get(std::string url);
+	boost::shared_ptr<CWebRespone> Post(std::string url,std::string data);
+	boost::shared_ptr<CWebRespone> Get(std::string ip,std::string port,std::string url);
+	boost::shared_ptr<CWebRespone> Post(std::string ip,std::string port,std::string url,std::string data);
+
+	void Get(std::string url,HttpCallBack cb);
+	void Post(std::string url,std::string data,HttpCallBack cb);
+	void Get(std::string ip,std::string port,std::string	url,HttpCallBack cb);
+	void Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb);
+
+	void MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,CHttpClient *client);
+
+	CWebRequest Request;
+
 
 private:
+	void BuildHeader(boost::shared_ptr<CWebRespone> respone,std::string header);
+	void BuildCookie(std::string header);
 
-	void Send(std::string method,std::string url,std::string pstr,FuncCallBack funcBack);
-	void Send(std::string method, std::string url,char * data, size_t dataLen,FuncCallBack funcBack);
-	void MessageCallBack(CHttpClient* sender,char* retnMsg, std::string header, int ContentLen,FuncCallBack funback);
+	boost::shared_ptr<CWebRespone> buildRespone(boost::shared_ptr<ClientResult> result);
 
-	size_t BuildHttpBody(std::string method, std::string url, char * &data ,size_t dataLen);
-	std::string GetPortByUrl(std::string url);
+
 	boost::asio::io_service *m_ioServ;
-	void BuildRespone(std::string header);
-	
+
+
+
+
 };
 
