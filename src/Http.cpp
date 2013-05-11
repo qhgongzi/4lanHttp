@@ -27,7 +27,7 @@ boost::shared_ptr<CWebRespone> CHttp::Get(std::string url){
 
 boost::shared_ptr<CWebRespone> CHttp::Post(std::string url,std::string data)
 {
-	char * dataAry=new char (data.length());
+	char * dataAry=new char [data.length()];
 	memset(dataAry,0,data.length());
 	memcpy(dataAry,data.c_str(),data.length());
 
@@ -57,7 +57,7 @@ boost::shared_ptr<CWebRespone> CHttp::Get(std::string ip,std::string port,std::s
 
 boost::shared_ptr<CWebRespone> CHttp::Post(std::string ip,std::string port,std::string url,std::string data)
 {
-	char * dataAry=new char (data.length());
+	char * dataAry=new char [data.length()];
 	memset(dataAry,0,data.length());
 	memcpy(dataAry,data.c_str(),data.length());
 
@@ -70,6 +70,38 @@ boost::shared_ptr<CWebRespone> CHttp::Post(std::string ip,std::string port,std::
 	boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
 
 	return respone;
+}
+
+void CHttp::Delete(std::string url,HttpCallBack cb)
+{
+	boost::shared_array<char> data;
+	this->Request.BuildBody("DELETE",url,data,0);
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+void CHttp::Put(std::string url,std::string data,HttpCallBack cb)
+{
+	char * dataAry=new char [data.length()];
+	memset(dataAry,0,data.length());
+	memcpy(dataAry,data.c_str(),data.length());
+
+	boost::shared_array<char> postdata(dataAry);
+	this->Request.BuildBody("PUT",url,postdata,data.length());
+
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
+}
+
+void CHttp::PutChar(std::string url,boost::shared_array<char> buf,size_t dataLen,HttpCallBack cb)
+{
+	this->Request.BuildBody("PUT",url,buf,dataLen);
+	CHttpClient *client=new CHttpClient(*m_ioServ);
+	client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+	return ;
 }
 
 
@@ -85,7 +117,7 @@ void CHttp::Get(std::string url,HttpCallBack cb)
 
 void CHttp::Post(std::string url,std::string data,HttpCallBack cb)
 {
-	char * dataAry=new char (data.length());
+	char * dataAry=new char [data.length()];
 	memset(dataAry,0,data.length());
 	memcpy(dataAry,data.c_str(),data.length());
 
@@ -109,7 +141,7 @@ void CHttp::Get(std::string ip,std::string port,std::string	url,HttpCallBack cb)
 
 void CHttp::Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
 {
-	char * dataAry=new char (data.length());
+	char * dataAry=new char [data.length()];
 	memset(dataAry,0,data.length());
 	memcpy(dataAry,data.c_str(),data.length());
 
