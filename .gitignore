@@ -13,13 +13,5 @@
 *.a
 
 
-#vs project file
-demo/ipch
-demo/Debug
-demo/Release
-*.opensdf
-*.sdf
-*.tlog
-*.obj
-demo/minWeb/Debug
-demo/minWeb/Release
+#bin
+*.exe
