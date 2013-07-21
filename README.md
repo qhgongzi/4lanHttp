@@ -1,5 +1,6 @@
-4lanHttp
-========
+#httplib
+this is a tiny httplib
 
-+ support linux
-a powerful and easy use c++ http client
+i use it for my many personal projects.
+
+by the way ,it was very easy to use
