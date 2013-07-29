@@ -48,12 +48,12 @@ std::string weblib::UrlDecode(const std::string& szToDecode)
 			{
 				std::string hexStr = szToDecode.substr(i + 1, 2);
 				hex = strtol(hexStr.c_str(), 0, 16);
-				//×ÖÄ¸ºÍÊý×Ö[0-9a-zA-Z]¡¢Ò»Ð©ÌØÊâ·ûºÅ[$-_.+!*'(),] ¡¢ÒÔ¼°Ä³Ð©±£Áô×Ö[$&+,/:;=?@]
-				//¿ÉÒÔ²»¾­¹ý±àÂëÖ±½ÓÓÃÓÚURL
+				//å­—æ¯å’Œæ•°å­—[0-9a-zA-Z]ã€ä¸€äº›ç‰¹æ®Šç¬¦å·[$-_.+!*'(),] ã€ä»¥åŠæŸäº›ä¿ç•™å­—[$&+,/:;=?@]
+				//å¯ä»¥ä¸ç»è¿‡ç¼–ç ç›´æŽ¥ç”¨äºŽURL
 				if (!((hex >= 48 && hex <= 57) ||	//0-9
 					(hex >=97 && hex <= 122) ||	//a-z
 					(hex >=65 && hex <= 90) ||	//A-Z
-					//Ò»Ð©ÌØÊâ·ûºÅ¼°±£Áô×Ö[-_.]  [$&+,/:;=?@]
+					//ä¸€äº›ç‰¹æ®Šç¬¦å·åŠä¿ç•™å­—[-_.]  [$&+,/:;=?@]
 					hex == 0x24 || hex == 0x26 || hex == 0x27
 					))
 				{
@@ -95,7 +95,7 @@ std::string  replace_all(std::string&   str,const   std::string&   old_value,con
 std::string weblib::base64Encode(const unsigned char * Data,int DataByte)
 {
     const char EncodeTable[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    //·µ»ØÖµ
+    //è¿”å›žå€¼
     string strEncode;
     unsigned char Tmp[4]={0};
     int LineLength=0;
@@ -110,7 +110,7 @@ std::string weblib::base64Encode(const unsigned char * Data,int DataByte)
         strEncode+= EncodeTable[Tmp[3] & 0x3F];
         if(LineLength+=4,LineLength==76) {strEncode+="\r\n";LineLength=0;}
     }
-    //¶ÔÊ£ÓàÊý¾Ý½øÐÐ±àÂë
+    //å¯¹å‰©ä½™æ•°æ®è¿›è¡Œç¼–ç 
     int Mod=DataByte % 3;
     if(Mod==1)
     {
@@ -138,8 +138,8 @@ std::string weblib::GetCurrentTimeGMT()
 { 
     using namespace boost::posix_time; 
     using namespace boost::gregorian; 
-    ptime now = second_clock::universal_time(); //GMT±ê×¼Ê±¼ä 
-    //ptime now = second_clock::local_time();     // µ±µØÊ±¼ä 
+    ptime now = second_clock::universal_time(); //GMTæ ‡å‡†æ—¶é—´ 
+    //ptime now = second_clock::local_time();     // å½“åœ°æ—¶é—´ 
     std::stringstream format_date; 
     time_facet* tfacet = new time_facet("%a, %d %b %Y %H:%M:%S GMT"); 
     format_date.imbue(std::locale(format_date.getloc(),tfacet)); 

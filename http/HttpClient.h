@@ -19,7 +19,7 @@ public:
 	void Send(CWebRequest *request,ClientCallBack cb);
 	void check_deadline(boost::system::error_code err);
 	boost::asio::deadline_timer deadline_;
-	bool bStop;//ÄÜ·ñÏú»ÙÀàµÄ±ê¼Ç
+	bool bStop;//èƒ½å¦é”€æ¯ç±»çš„æ ‡è®°
 	ClientCallBack mHttpBack;
 
 	CHttpClient(boost::asio::io_service& io_service);

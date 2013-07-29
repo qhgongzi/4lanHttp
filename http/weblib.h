@@ -19,11 +19,11 @@ namespace weblib
 	{
 		std::stringstream stream;
 
-		stream<<t;//ÏòÁ÷ÖĞ´«Öµ
+		stream<<t;//å‘æµä¸­ä¼ å€¼
 
-		target result;//ÕâÀï´æ´¢×ª»»½á¹û
+		target result;//è¿™é‡Œå­˜å‚¨è½¬æ¢ç»“æœ
 
-		stream>>result;//ÏòresultÖĞĞ´ÈëÖµ
+		stream>>result;//å‘resultä¸­å†™å…¥å€¼
 
 		return result;
 	};

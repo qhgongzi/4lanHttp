@@ -33,14 +33,14 @@ void CHttpClient::Send(CWebRequest *request,ClientCallBack cb)
 		deadline_.async_wait(boost::bind(&CHttpClient::check_deadline, this,boost::asio::placeholders::error));
 
 
-	//½âÎöÓòÃû¡£
+	//è§£æåŸŸåã€‚
 	resolver_.async_resolve(query,boost::bind(&CHttpClient::handle_resolver,this,
 		boost::asio::placeholders::error,
 		boost::asio::placeholders::iterator));
-	//±£´æ·¢ËÍµÄ°üÌå
+	//ä¿å­˜å‘é€çš„åŒ…ä½“
 
 
-	//Èç¹ûĞ­ÒéÊÇssl£¬¾Í½øĞĞÈÏÖ¤
+	//å¦‚æœåè®®æ˜¯sslï¼Œå°±è¿›è¡Œè®¤è¯
 	if(request->m_isSSL==true)
 	{
 		protocol_=1;
@@ -55,14 +55,14 @@ boost::shared_ptr<ClientResult> CHttpClient::Send(CWebRequest *request)
 	this->m_request=request;
 	tcp::resolver::query query(request->m_ip,request->m_port);
 
-	//½âÎöÓòÃû¡£
+	//è§£æåŸŸåã€‚
 	tcp::resolver::iterator endpoint_iterator =resolver_.resolve(query);
-	//±£´æ·¢ËÍµÄ°üÌå
+	//ä¿å­˜å‘é€çš„åŒ…ä½“
 
 	try{
 		boost::asio::connect(socket_,endpoint_iterator);
 
-		//Èç¹ûĞ­ÒéÊÇssl£¬¾Í½øĞĞÈÏÖ¤
+		//å¦‚æœåè®®æ˜¯sslï¼Œå°±è¿›è¡Œè®¤è¯
 		if(request->m_isSSL==true){
 			protocol_=1;
 			ssl_sock.set_verify_mode(boost::asio::ssl::verify_peer);
@@ -79,7 +79,7 @@ boost::shared_ptr<ClientResult> CHttpClient::Send(CWebRequest *request)
 	catch(const boost::system::error_code& ex)
 	{
 		m_respone->errMsg=ex.message();
-		m_respone->errorCode=ex.value();//Á¬½ÓÊ§°Ü
+		m_respone->errorCode=ex.value();//è¿æ¥å¤±è´¥
 		return m_respone;
 	}
 
@@ -95,9 +95,9 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 	}
 	nHeaderLen=headSize;
 	std::istream response_stream(&respone_);
-	response_stream.unsetf(std::ios_base::skipws);//asio::streambuf ×ª»»³Éistream ²¢ÇÒºöÂÔ¿Õ¸ñ
+	response_stream.unsetf(std::ios_base::skipws);//asio::streambuf è½¬æ¢æˆistream å¹¶ä¸”å¿½ç•¥ç©ºæ ¼
 
-	//½«Êı¾İÁ÷×·¼Óµ½headerÀï
+	//å°†æ•°æ®æµè¿½åŠ åˆ°headeré‡Œ
 	int readSize=respone_.size();
 
 	char * head=new char[headSize+1];
@@ -109,7 +109,7 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 	int rdContentSize=readSize-m_respone->header.size();
 
 	char * cont=NULL;
-	//»ñÈ¡httpContentµÄ³¤¶È
+	//è·å–httpContentçš„é•¿åº¦
 	if(m_respone->header.find("Content-Length")!=std::string::npos)
 	{
 		std::string len=m_respone->header.substr(m_respone->header.find("Content-Length: ")+16);
@@ -123,7 +123,7 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 		}
 
 		nContentLen=respone_.size();
-		cont=new char[nContentLen+1]; //´Ë´¦ÉêÇëÁËÄÚ´æ£¬×¢ÒâÊÍ·Å¡£
+		cont=new char[nContentLen+1]; //æ­¤å¤„ç”³è¯·äº†å†…å­˜ï¼Œæ³¨æ„é‡Šæ”¾ã€‚
 		memset(cont+nContentLen,0,1);
 		response_stream.read(cont,nContentLen);
 
@@ -141,7 +141,7 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 
 			int readLen=respone_.size()-contSize;
 
-			char *chunkStr=new char[contSize]; //´Ë´¦ÉêÇëÁËÄÚ´æ£¬×¢ÒâÊÍ·Å¡£
+			char *chunkStr=new char[contSize]; //æ­¤å¤„ç”³è¯·äº†å†…å­˜ï¼Œæ³¨æ„é‡Šæ”¾ã€‚
 			response_stream.read(chunkStr,contSize);
 			memset(chunkStr+contSize-2,0,2);
 			long nextReadSize=strtol(chunkStr,NULL,16);
@@ -205,7 +205,7 @@ void CHttpClient::handle_resolver(boost::system::error_code err, tcp::resolver::
 	else
 	{
 		this->m_respone->errorCode=1;
-		this->m_respone->errMsg="½âÎöÓòÃûÊ§°Ü";
+		this->m_respone->errMsg="è§£æåŸŸåå¤±è´¥";
 		mHttpBack(this->m_respone);
 	}
 }
@@ -239,12 +239,12 @@ void CHttpClient::handle_connect(boost::system::error_code err)
 	else
 	{
 		this->m_respone->errorCode=2;
-		this->m_respone->errMsg="Á¬½ÓÊ§°Ü";
+		this->m_respone->errMsg="è¿æ¥å¤±è´¥";
 		mHttpBack(this->m_respone);
 	}
 }
 
-//sslÎÕÊÖ£¬ÎÕÊÖºó²ÅÄÜ·¢Êı¾İ.
+//sslæ¡æ‰‹ï¼Œæ¡æ‰‹åæ‰èƒ½å‘æ•°æ®.
 void CHttpClient::handle_handshake(boost::system::error_code err)
 {
 
@@ -259,7 +259,7 @@ void CHttpClient::handle_handshake(boost::system::error_code err)
 	else
 	{
 		this->m_respone->errorCode=3;
-		this->m_respone->errMsg="ÎÕÊÖÊ§°Ü";
+		this->m_respone->errMsg="æ¡æ‰‹å¤±è´¥";
 		mHttpBack(this->m_respone);
 	}
 }
@@ -286,12 +286,12 @@ void CHttpClient::handle_write(boost::system::error_code err,size_t bytes_transf
 	else
 	{
 		this->m_respone->errorCode=4;
-		this->m_respone->errMsg="Ğ´Èë´íÎó";
+		this->m_respone->errMsg="å†™å…¥é”™è¯¯";
 		mHttpBack(this->m_respone);
 	}
 }
 
-//http°üÍ·µÄ¶ÁÈ¡»Øµ÷º¯Êı¡£
+//httpåŒ…å¤´çš„è¯»å–å›è°ƒå‡½æ•°ã€‚
 void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_transfarred)
 {
 
@@ -302,9 +302,9 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 
 		nHeaderLen=bytes_transfarred;
 		std::istream response_stream(&respone_);
-		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf ×ª»»³Éistream ²¢ÇÒºöÂÔ¿Õ¸ñ
+		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf è½¬æ¢æˆistream å¹¶ä¸”å¿½ç•¥ç©ºæ ¼
 
-		//½«Êı¾İÁ÷×·¼Óµ½headerÀï
+		//å°†æ•°æ®æµè¿½åŠ åˆ°headeré‡Œ
 		int readSize=respone_.size();
 
 		char * head=new char[bytes_transfarred+1];
@@ -315,7 +315,7 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 
 		int rdContentSize=readSize-m_respone->header.size();
 
-		//»ñÈ¡httpContentµÄ³¤¶È
+		//è·å–httpContentçš„é•¿åº¦
 		if(m_respone->header.find("Content-Length")!=std::string::npos)
 		{
 			std::string len=m_respone->header.substr(m_respone->header.find("Content-Length: ")+16);
@@ -361,7 +361,7 @@ void CHttpClient::handle_HeaderRead(boost::system::error_code err,size_t bytes_t
 	else
 	{
 		this->m_respone->errorCode=5;
-		this->m_respone->errMsg="Í·²¿¶ÁÈ¡´íÎó";
+		this->m_respone->errMsg="å¤´éƒ¨è¯»å–é”™è¯¯";
 		mHttpBack(this->m_respone);
 	}
 
@@ -374,12 +374,12 @@ void CHttpClient::handle_chunkRead(boost::system::error_code err,size_t bytes_tr
 	{
 		try{
 		std::istream response_stream(&respone_);
-		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf ×ª»»³Éistream ²¢ÇÒºöÂÔ¿Õ¸ñ
+		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf è½¬æ¢æˆistream å¹¶ä¸”å¿½ç•¥ç©ºæ ¼
 
 		int contSize=bytes_transfarred;
 		int readLen=respone_.size()-contSize;
 
-		char *chunkStr=new char[contSize]; //´Ë´¦ÉêÇëÁËÄÚ´æ£¬×¢ÒâÊÍ·Å¡£
+		char *chunkStr=new char[contSize]; //æ­¤å¤„ç”³è¯·äº†å†…å­˜ï¼Œæ³¨æ„é‡Šæ”¾ã€‚
 		response_stream.read(chunkStr,contSize);
 		memset(chunkStr+contSize-2,0,2);
 		long nextReadSize=strtol(chunkStr,NULL,16);
@@ -442,23 +442,23 @@ void CHttpClient::handle_chunkRead(boost::system::error_code err,size_t bytes_tr
 
 	}else{
 		this->m_respone->errorCode=6;
-		this->m_respone->errMsg="ÄÚÈİ¶ÁÈ¡´íÎó";
+		this->m_respone->errMsg="å†…å®¹è¯»å–é”™è¯¯";
 		mHttpBack(this->m_respone);
 	}
 
 }
 
-//http°üÌåµÄ¶ÁÈ¡»Øµ÷º¯Êı
+//httpåŒ…ä½“çš„è¯»å–å›è°ƒå‡½æ•°
 void CHttpClient::handle_ContentRead(boost::system::error_code err,size_t bytes_transfarred)
 {
 	if(!err||err.value()==2)
 	{
 		std::istream response_stream(&respone_);
-		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf ×ª»»³Éistream ²¢ÇÒºöÂÔ¿Õ¸ñ
+		response_stream.unsetf(std::ios_base::skipws);//asio::streambuf è½¬æ¢æˆistream å¹¶ä¸”å¿½ç•¥ç©ºæ ¼
 
 		nContentLen=respone_.size();
-		//½«Êı¾İÁ÷×·¼Óµ½headerÀï
-		char *cont=new char[nContentLen+1]; //´Ë´¦ÉêÇëÁËÄÚ´æ£¬×¢ÒâÊÍ·Å¡£
+		//å°†æ•°æ®æµè¿½åŠ åˆ°headeré‡Œ
+		char *cont=new char[nContentLen+1]; //æ­¤å¤„ç”³è¯·äº†å†…å­˜ï¼Œæ³¨æ„é‡Šæ”¾ã€‚
 		memset(cont+nContentLen,0,1);
 		response_stream.read(cont,nContentLen);
 
@@ -470,7 +470,7 @@ void CHttpClient::handle_ContentRead(boost::system::error_code err,size_t bytes_
 	}else
 	{
 		this->m_respone->errorCode=7;
-		this->m_respone->errMsg="ÄÚÈİ¶ÁÈ¡´íÎó";
+		this->m_respone->errMsg="å†…å®¹è¯»å–é”™è¯¯";
 		mHttpBack(this->m_respone);
 	}
 }
