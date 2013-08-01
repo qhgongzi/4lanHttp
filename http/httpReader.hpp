@@ -1,7 +1,7 @@
 #include "common.h"
 #include "boost/asio.hpp"
 
-template <class Tsock>
+template <typename Tsock>
 class httpReader
 {
 	
@@ -11,7 +11,7 @@ class httpReader
 		std::string m_header;
 		size_t m_bodysize;
 
-		void httpReader(Tsock sock)
+		httpReader(Tsock sock)
 	 	{
 			this->m_scok=sock;
 			this->read();
@@ -20,21 +20,22 @@ class httpReader
 
 		std::string readHeader()
 		{
-			int headSize;
+			size_t headSize;
 			
 			headSize=boost::asio::read_until(m_sock,respone_,"\r\n\r\n");
-			
-			nHeaderLen=headSize;
 			std::istream response_stream(&respone_);
+
 			response_stream.unsetf(std::ios_base::skipws);//asio::streambuf 转换成istream 并且忽略空格
 
 			//将数据流追加到header里
-			int readSize=respone_.size();
+			size_t readSize=respone_.size();
 
 			char * head=new char[headSize+1];
 			memset(head,0,headSize+1);
 			response_stream.read(head,headSize);
 			std::string header=head;
+
+			this->rdContentSize=readSize-headSize;
 			delete head;
 			return header;
 		}
@@ -121,9 +122,6 @@ class httpReader
 		{
 			
 			this->m_header=this->readHeader();
-
-			int rdContentSize=readSize-this->m_header.size();
-
 			
 			//获取httpContent的长度
 			if(this->m_header.find("Content-Length")!=std::string::npos)
@@ -134,17 +132,20 @@ class httpReader
 			else if(this->m_header.find("Transfer-Encoding: chunked")!=std::string::npos)
 			{
 				
-				return this->readBodyByChunk()
+				return this->readBodyByChunk();
 			}
-
-			 content(cont);
 
 		}
 
 
 
 	private:
-		Tsock m_sock;
+		Tsock &m_sock;
 		boost::asio::streambuf respone_;
+		std::istream response_stream;
 
-}
+		size_t rdContentSize;
+
+
+
+};

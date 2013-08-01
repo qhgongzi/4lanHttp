@@ -90,18 +90,27 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 {
 	
 	if(protocol_==1){
-		httpReader<tcp::socket> reader;
+		httpReader<tcp::socket> reader(&socket_);
+
+		boost::shared_array<char> content=reader.read();
+	
+		m_respone->errorCode=0;
+		m_respone->msg=content;
+		m_respone->header=reader.m_header;
+		m_respone->len=reader.m_bodysize;
+
 	}else{
-		httpReader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> reader
+		httpReader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> reader(&ssl_sock);
+		boost::shared_array<char> content=reader.read();
+	
+		m_respone->errorCode=0;
+		m_respone->msg=content;
+		m_respone->header=reader.m_header;
+		m_respone->len=reader.m_bodysize;
 	}
 	
 
-	boost::shared_array<char> content=reader.read();
 	
-	m_respone->errorCode=0;
-	m_respone->msg=content;
-	m_respone->header=reader.m_header;
-	m_respone->len=header.m_bodysize;
 
 	return m_respone;
 
