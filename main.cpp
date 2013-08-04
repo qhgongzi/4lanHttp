@@ -8,9 +8,14 @@ CHttp *http=new CHttp();
 
 int main()
 {
-	boost::shared_ptr<CWebRespone> ret=http->Get("http://www.xiaoqin.in");
-	std::string msg=ret->msg.get();
-	std::cout<<msg;
+	while(true)
+	{
+		boost::shared_ptr<CWebRespone> ret=http->Get("http://www.xiaoqin.in");
+		std::string msg=ret->msg.get();
+		std::cout<<msg;
+		sleep(1);
+	}
+	
 
 	int waitSingle;
 	std::cin>>waitSingle;

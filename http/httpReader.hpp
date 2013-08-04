@@ -11,19 +11,18 @@ class httpReader
 		std::string m_header;
 		size_t m_bodysize;
 
-		httpReader(Tsock sock)
+		httpReader(Tsock *sock)
 	 	{
-			this->m_scok=sock;
-			this->read();
-
+			this->m_sock=sock;
 		}
 
 		std::string readHeader()
 		{
 			size_t headSize;
-			
-			headSize=boost::asio::read_until(m_sock,respone_,"\r\n\r\n");
 			std::istream response_stream(&respone_);
+			
+			headSize=boost::asio::read_until(*m_sock,respone_,"\r\n\r\n");
+			
 
 			response_stream.unsetf(std::ios_base::skipws);//asio::streambuf 转换成istream 并且忽略空格
 
@@ -44,13 +43,14 @@ class httpReader
 		{
 			char * cont=NULL;
 			size_t nContentLen;
+			std::istream response_stream(&respone_);
 
 			std::string len=this->m_header.substr(this->m_header.find("Content-Length: ")+16);
 			len=len.substr(0,len.find_first_of("\r"));
 			nContentLen=atoi(len.c_str());
 
 			
-			boost::asio::read(m_sock,respone_,boost::asio::transfer_at_least(nContentLen-rdContentSize));
+			boost::asio::read(*m_sock,respone_,boost::asio::transfer_at_least(nContentLen-rdContentSize));
 			
 			nContentLen=respone_.size();
 			cont=new char[nContentLen+1]; //此处申请了内存，注意释放。
@@ -68,12 +68,13 @@ class httpReader
 			
 			char * cont=NULL;
 			size_t nContentLen;
+			std::istream response_stream(&respone_);
 
 			while (true)
 			{
 				int contSize=0;
 				
-				contSize=boost::asio::read_until(m_sock,respone_,"\r\n");
+				contSize=boost::asio::read_until(*m_sock,respone_,"\r\n");
 				
 
 				int readLen=respone_.size()-contSize;
@@ -89,7 +90,7 @@ class httpReader
 				char * htmlBuf=new char[nextReadSize+2];
 
 				if(nextReadSize>readLen){	
-					boost::asio::read(m_sock,respone_,boost::asio::transfer_at_least(nextReadSize-readLen+2));
+					boost::asio::read(*m_sock,respone_,boost::asio::transfer_at_least(nextReadSize-readLen+2));
 				}
 
 				response_stream.read(htmlBuf,nextReadSize+2);
@@ -140,9 +141,8 @@ class httpReader
 
 
 	private:
-		Tsock &m_sock;
+		Tsock *m_sock;
 		boost::asio::streambuf respone_;
-		std::istream response_stream;
 
 		size_t rdContentSize;
 

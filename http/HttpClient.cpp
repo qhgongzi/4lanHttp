@@ -89,7 +89,7 @@ boost::shared_ptr<ClientResult> CHttpClient::Send(CWebRequest *request)
 boost::shared_ptr<ClientResult> CHttpClient::readBody()
 {
 	
-	if(protocol_==1){
+	if(protocol_==0){
 		httpReader<tcp::socket> reader(&socket_);
 
 		boost::shared_array<char> content=reader.read();
@@ -100,7 +100,7 @@ boost::shared_ptr<ClientResult> CHttpClient::readBody()
 		m_respone->len=reader.m_bodysize;
 
 	}else{
-		httpReader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> reader(&ssl_sock);
+		httpReader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > reader(&ssl_sock);
 		boost::shared_array<char> content=reader.read();
 	
 		m_respone->errorCode=0;
