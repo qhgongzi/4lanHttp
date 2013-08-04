@@ -44,7 +44,7 @@ namespace echttp
 	        }
 
 	    protected:
-	        static iopool * pool=NULL;
+	        static iopool * pool;
 	};
 }
 

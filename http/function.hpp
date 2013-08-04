@@ -172,7 +172,7 @@ namespace echttp{
 	    return format_date.str();  
 	}    
 
-	std::vector<std::string> weblib::explode(std::string strs,std::string delimiter)
+	std::vector<std::string> explode(std::string strs,std::string delimiter)
 	{
 	    std::vector<std::string>  strAry;
 	    while(strs.find("#")!=std::string::npos)
@@ -189,7 +189,7 @@ namespace echttp{
 	std::string GetFormInputValue(std::string strs,std::string name)
 	{
 		string midstr=strs.substr(strs.find(name)+name.size());
-		return weblib::substr(midstr,"value=\"","\"");
+		return substr(midstr,"value=\"","\"");
 	}
 
 }

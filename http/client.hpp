@@ -18,65 +18,11 @@ namespace echttp
 	public:
 		typedef	boost::function<void(boost::shared_ptr<ClientResult> result)> ClientCallBack;
 
-		
-		boost::shared_ptr<ClientResult> Send(CWebRequest *request);
-		void Send(request *request,ClientCallBack cb);
-		void check_deadline(boost::system::error_code err);
 		boost::asio::deadline_timer deadline_;
 		bool bStop;//能否销毁类的标记
 		ClientCallBack mHttpBack;
 
-		client(boost::asio::io_service& io_service);
-		~client(void);
-
-	private:
-		tcp::socket socket_;
-		tcp::resolver resolver_;
-		boost::asio::ssl::context ctx;
-		boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_sock;
-		int protocol_;
-		boost::asio::streambuf respone_;
-		int nHeaderLen;
-		int nContentLen;
-		char* m_readBuf;
-
-		CWebRequest *m_request;
-		boost::shared_ptr<ClientResult> m_respone;
-		
-		int nTimeOut;
-
-		void handle_resolver(boost::system::error_code err, tcp::resolver::iterator endpoint_iterator);
-		bool verify_certificate(bool preverified, boost::asio::ssl::verify_context& ctx);
-		void handle_connect(boost::system::error_code err);
-		void handle_handshake(boost::system::error_code err);
-		void handle_write(boost::system::error_code err,size_t bytes_transfarred);
-		void handle_HeaderRead(boost::system::error_code err,size_t bytes_transfarred);
-		void handle_ContentRead(boost::system::error_code err,size_t bytes_transfarred);
-		void handle_chunkRead(boost::system::error_code err,size_t bytes_transfarred);
-		boost::shared_ptr<ClientResult> readBody();
-
-
-
-		client::client(boost::asio::io_service& io_service)
-			:socket_(io_service),
-			resolver_(io_service),
-			ctx(boost::asio::ssl::context::sslv23),
-			ssl_sock(socket_,ctx),
-			deadline_(io_service)
-		{
-			nTimeOut=10000;
-			bStop=true;
-			m_respone=boost::shared_ptr<ClientResult>(new ClientResult);
-			m_readBuf=NULL;
-		}
-
-		client::~client(void)
-		{
-			
-		}
-
-
-		void client::Send(CWebRequest *request,ClientCallBack cb)
+		void Send(request *request,ClientCallBack cb)
 		{
 			this->m_request=request;
 			this->mHttpBack=cb;
@@ -103,7 +49,7 @@ namespace echttp
 
 		}
 
-		boost::shared_ptr<ClientResult> client::Send(CWebRequest *request)
+		boost::shared_ptr<ClientResult> Send(request *request)
 		{
 			this->m_request=request;
 			tcp::resolver::query query(request->m_ip,request->m_port);
@@ -138,40 +84,56 @@ namespace echttp
 
 		}
 
-		boost::shared_ptr<ClientResult> client::readBody()
+		void check_deadline(boost::system::error_code err)
 		{
-			
-			if(protocol_==0){
-				httpReader<tcp::socket> reader(&socket_);
+			if(err != boost::asio::error::operation_aborted)
+			{
+				bStop=false;
+				try{
+					socket_.close();
+					bStop=true;
+				}
+				catch(...)
+				{
+					bStop=true;
+				}
 
-				boost::shared_array<char> content=reader.read();
-			
-				m_respone->errorCode=0;
-				m_respone->msg=content;
-				m_respone->header=reader.m_header;
-				m_respone->len=reader.m_bodysize;
-
-			}else{
-				httpReader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > reader(&ssl_sock);
-				boost::shared_array<char> content=reader.read();
-			
-				m_respone->errorCode=0;
-				m_respone->msg=content;
-				m_respone->header=reader.m_header;
-				m_respone->len=reader.m_bodysize;
 			}
-			
-
-			
-
-			return m_respone;
-
 		}
 
+		
+		client(boost::asio::io_service& io_service)
+			:socket_(io_service),
+			resolver_(io_service),
+			ctx(boost::asio::ssl::context::sslv23),
+			ssl_sock(socket_,ctx),
+			deadline_(io_service)
+		{
+			nTimeOut=10000;
+			bStop=true;
+			m_respone=boost::shared_ptr<ClientResult>(new ClientResult);
+			m_readBuf=NULL;
+		}
 
+		~client(void){}
 
+	private:
+		tcp::socket socket_;
+		tcp::resolver resolver_;
+		boost::asio::ssl::context ctx;
+		boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_sock;
+		int protocol_;
+		boost::asio::streambuf respone_;
+		int nHeaderLen;
+		int nContentLen;
+		char* m_readBuf;
 
-		void client::handle_resolver(boost::system::error_code err, tcp::resolver::iterator endpoint_iterator)
+		request *m_request;
+		boost::shared_ptr<ClientResult> m_respone;
+		
+		int nTimeOut;
+
+		void handle_resolver(boost::system::error_code err, tcp::resolver::iterator endpoint_iterator)
 		{
 			if(!err)
 			{
@@ -190,13 +152,13 @@ namespace echttp
 		}
 
 
-		bool client::verify_certificate(bool preverified, boost::asio::ssl::verify_context& ctx)
+		bool verify_certificate(bool preverified, boost::asio::ssl::verify_context& ctx)
 		{
 			return true;
 		}
 
 
-		void client::handle_connect(boost::system::error_code err)
+		void handle_connect(boost::system::error_code err)
 		{
 			if(!err)
 			{
@@ -224,7 +186,7 @@ namespace echttp
 		}
 
 		//ssl握手，握手后才能发数据.
-		void client::handle_handshake(boost::system::error_code err)
+		void handle_handshake(boost::system::error_code err)
 		{
 
 			if(!err)
@@ -243,7 +205,7 @@ namespace echttp
 			}
 		}
 
-		void client::handle_write(boost::system::error_code err,size_t bytes_transfarred)
+		void handle_write(boost::system::error_code err,size_t bytes_transfarred)
 		{
 
 			if(!err)
@@ -271,7 +233,7 @@ namespace echttp
 		}
 
 		//http包头的读取回调函数。
-		void client::handle_HeaderRead(boost::system::error_code err,size_t bytes_transfarred)
+		void handle_HeaderRead(boost::system::error_code err,size_t bytes_transfarred)
 		{
 
 			if(!err)
@@ -347,7 +309,7 @@ namespace echttp
 
 		}
 
-		void client::handle_chunkRead(boost::system::error_code err,size_t bytes_transfarred)
+		void handle_chunkRead(boost::system::error_code err,size_t bytes_transfarred)
 		{
 			if(!err||err.value()==2)
 			{
@@ -428,7 +390,7 @@ namespace echttp
 		}
 
 		//http包体的读取回调函数
-		void client::handle_ContentRead(boost::system::error_code err,size_t bytes_transfarred)
+		void handle_ContentRead(boost::system::error_code err,size_t bytes_transfarred)
 		{
 			if(!err||err.value()==2)
 			{
@@ -454,23 +416,34 @@ namespace echttp
 			}
 		}
 
-		void client::check_deadline(boost::system::error_code err)
+		boost::shared_ptr<ClientResult> readBody()
 		{
-			if(err != boost::asio::error::operation_aborted)
-			{
-				bStop=false;
-				try{
-					socket_.close();
-					bStop=true;
-				}
-				catch(...)
-				{
-					bStop=true;
-				}
+			
+			if(protocol_==0){
+				echttp::reader<tcp::socket> reader(&socket_);
 
+				boost::shared_array<char> content=reader.read();
+			
+				m_respone->errorCode=0;
+				m_respone->msg=content;
+				m_respone->header=reader.m_header;
+				m_respone->len=reader.m_bodysize;
+
+			}else{
+				echttp::reader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > reader(&ssl_sock);
+				boost::shared_array<char> content=reader.read();
+			
+				m_respone->errorCode=0;
+				m_respone->msg=content;
+				m_respone->header=reader.m_header;
+				m_respone->len=reader.m_bodysize;
 			}
+			
+			return m_respone;
 		}
+
 	};
+		
 }
 
 

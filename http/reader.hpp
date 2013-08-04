@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common.hpp"
 #include "boost/asio.hpp"
 
 namespace echttp
@@ -11,7 +11,7 @@ namespace echttp
 			std::string m_header;
 			size_t m_bodysize;
 
-			httpReader(Tsock *sock)
+			reader(Tsock *sock)
 		 	{
 				this->m_sock=sock;
 			}
