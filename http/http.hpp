@@ -10,8 +10,8 @@ namespace echttp
 	class echttp
 	{
 	public:
-		CHttp(void);
-		~CHttp(void);
+		echttp(void);
+		~echttp(void);
 
 		typedef	boost::function<void(boost::shared_ptr<respone>)> HttpCallBack;
 
@@ -28,7 +28,7 @@ namespace echttp
 		void Get(std::string ip,std::string port,std::string	url,HttpCallBack cb);
 		void Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb);
 
-		void MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,CHttpClient *client);
+		void MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,client *client);
 
 		echttp::request request;
 
@@ -44,30 +44,30 @@ namespace echttp
 	};
 	
 
-	CHttp::CHttp(void)
+	echttp::echttp(void)
 	{
 		this->m_ioServ=&CIoPool::Instance(4)->io;
 	}
 
 
-	CHttp::~CHttp(void)
+	echttp::~echttp(void)
 	{
 	}
 
-	boost::shared_ptr<CWebRespone> CHttp::Get(std::string url){
+	boost::shared_ptr<respone> echttp::Get(std::string url){
 
 		boost::shared_array<char> data;
 		this->Request.BuildBody("GET",url,data,0);
 
-		CHttpClient client(*m_ioServ);
+		client client(*m_ioServ);
 
 		boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-		boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+		boost::shared_ptr<respone> respone=this->buildRespone(result);
 
 		return respone;
 	}
 
-	boost::shared_ptr<CWebRespone> CHttp::Post(std::string url,std::string data)
+	boost::shared_ptr<respone> echttp::Post(std::string url,std::string data)
 	{
 		char * dataAry=new char [data.length()];
 		memset(dataAry,0,data.length());
@@ -76,28 +76,28 @@ namespace echttp
 		boost::shared_array<char> postdata(dataAry);
 		this->Request.BuildBody("POST",url,postdata,data.length());
 
-		CHttpClient client(*m_ioServ);
+		client client(*m_ioServ);
 
 		boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-		boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+		boost::shared_ptr<respone> respone=this->buildRespone(result);
 
 		return respone;
 	}
 
-	boost::shared_ptr<CWebRespone> CHttp::Get(std::string ip,std::string port,std::string url)
+	boost::shared_ptr<respone> echttp::Get(std::string ip,std::string port,std::string url)
 	{
 		boost::shared_array<char> data;
 		this->Request.BuildProxyBody("GET",ip,port,url,data,0);
 
-		CHttpClient client(*m_ioServ);
+		client client(*m_ioServ);
 
 		boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-		boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+		boost::shared_ptr<respone> respone=this->buildRespone(result);
 
 		return respone;
 	}
 
-	boost::shared_ptr<CWebRespone> CHttp::Post(std::string ip,std::string port,std::string url,std::string data)
+	boost::shared_ptr<respone> echttp::Post(std::string ip,std::string port,std::string url,std::string data)
 	{
 		char * dataAry=new char [data.length()];
 		memset(dataAry,0,data.length());
@@ -106,25 +106,25 @@ namespace echttp
 		boost::shared_array<char> postdata(dataAry);
 		this->Request.BuildProxyBody("POST",ip,port,url,postdata,data.length());
 
-		CHttpClient client(*m_ioServ);
+		client client(*m_ioServ);
 
 		boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-		boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+		boost::shared_ptr<respone> respone=this->buildRespone(result);
 
 		return respone;
 	}
 
-	void CHttp::Delete(std::string url,HttpCallBack cb)
+	void echttp::Delete(std::string url,HttpCallBack cb)
 	{
 		boost::shared_array<char> data;
 		this->Request.BuildBody("DELETE",url,data,0);
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
-	void CHttp::Put(std::string url,std::string data,HttpCallBack cb)
+	void echttp::Put(std::string url,std::string data,HttpCallBack cb)
 	{
 		char * dataAry=new char [data.length()];
 		memset(dataAry,0,data.length());
@@ -133,31 +133,31 @@ namespace echttp
 		boost::shared_array<char> postdata(dataAry);
 		this->Request.BuildBody("PUT",url,postdata,data.length());
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
-	void CHttp::PutChar(std::string url,boost::shared_array<char> buf,size_t dataLen,HttpCallBack cb)
+	void echttp::PutChar(std::string url,boost::shared_array<char> buf,size_t dataLen,HttpCallBack cb)
 	{
 		this->Request.BuildBody("PUT",url,buf,dataLen);
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
 
-	void CHttp::Get(std::string url,HttpCallBack cb)
+	void echttp::Get(std::string url,HttpCallBack cb)
 	{
 		boost::shared_array<char> data;
 		this->Request.BuildBody("GET",url,data,0);
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
-	void CHttp::Post(std::string url,std::string data,HttpCallBack cb)
+	void echttp::Post(std::string url,std::string data,HttpCallBack cb)
 	{
 		char * dataAry=new char [data.length()];
 		memset(dataAry,0,data.length());
@@ -166,22 +166,22 @@ namespace echttp
 		boost::shared_array<char> postdata(dataAry);
 		this->Request.BuildBody("POST",url,postdata,data.length());
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
-	void CHttp::Get(std::string ip,std::string port,std::string	url,HttpCallBack cb)
+	void echttp::Get(std::string ip,std::string port,std::string	url,HttpCallBack cb)
 	{
 		boost::shared_array<char> data;
 		this->Request.BuildProxyBody("GET",ip,port,url,data,0);
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
-	void CHttp::Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
+	void echttp::Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
 	{
 		char * dataAry=new char [data.length()];
 		memset(dataAry,0,data.length());
@@ -190,13 +190,13 @@ namespace echttp
 		boost::shared_array<char> postdata(dataAry);
 		this->Request.BuildProxyBody("POST",ip,port,url,postdata,data.length());
 
-		CHttpClient *client=new CHttpClient(*m_ioServ);
-		client->Send(&this->Request,boost::bind(&CHttp::MessageBack,this,_1,cb,client));
+		client *client=new client(*m_ioServ);
+		client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
 		return ;
 	}
 
 
-	void CHttp::BuildHeader(boost::shared_ptr<CWebRespone> respone,std::string header)
+	void echttp::BuildHeader(boost::shared_ptr<respone> respone,std::string header)
 	{
 		if(header.find("HTTP")!=std::string::npos)
 		{
@@ -224,7 +224,7 @@ namespace echttp
 		}
 	}
 
-	void CHttp::BuildCookie(std::string header)
+	void echttp::BuildCookie(std::string header)
 	{
 		boost::smatch result;
 		std::string regtxt("Set-Cooki.*? (.*?)=(.*?);");
@@ -254,9 +254,9 @@ namespace echttp
 
 	}
 
-	boost::shared_ptr<CWebRespone> CHttp::buildRespone(boost::shared_ptr<ClientResult> result)
+	boost::shared_ptr<respone> echttp::buildRespone(boost::shared_ptr<ClientResult> result)
 	{
-		boost::shared_ptr<CWebRespone> respone(new CWebRespone);
+		boost::shared_ptr<respone> respone(new respone);
 		respone->errMsg=result->errMsg;
 		respone->errorCode=result->errorCode;
 		respone->headerText=result->header;
@@ -272,9 +272,9 @@ namespace echttp
 
 
 
-	void CHttp::MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,CHttpClient *client)
+	void echttp::MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,client *client)
 	{
-		boost::shared_ptr<CWebRespone> respone=this->buildRespone(result);
+		boost::shared_ptr<respone> respone=this->buildRespone(result);
 
 		if(cb!=NULL)
 		{
