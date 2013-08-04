@@ -4,13 +4,13 @@
 int sendNum=0;
 int errNum=0;
 int successNum=0;
-CHttp *http=new CHttp();
+echttp *http=new echttp();
 
 int main()
 {
 	while(true)
 	{
-		boost::shared_ptr<CWebRespone> ret=http->Get("http://www.xiaoqin.in");
+		boost::shared_ptr<respone> ret=http->Get("http://www.xiaoqin.in");
 		std::string msg=ret->msg.get();
 		std::cout<<msg;
 		sleep(1);
