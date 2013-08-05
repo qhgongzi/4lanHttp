@@ -87,8 +87,8 @@ namespace echttp
 			boost::shared_array<char> data;
 			this->Request.BuildBody("DELETE",url,data,0);
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -101,16 +101,16 @@ namespace echttp
 			boost::shared_array<char> postdata(dataAry);
 			this->Request.BuildBody("PUT",url,postdata,data.length());
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
 		void PutChar(std::string url,boost::shared_array<char> buf,size_t dataLen,HttpCallBack cb)
 		{
 			this->Request.BuildBody("PUT",url,buf,dataLen);
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -120,8 +120,8 @@ namespace echttp
 			boost::shared_array<char> data;
 			this->Request.BuildBody("GET",url,data,0);
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -134,8 +134,8 @@ namespace echttp
 			boost::shared_array<char> postdata(dataAry);
 			this->Request.BuildBody("POST",url,postdata,data.length());
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -144,8 +144,8 @@ namespace echttp
 			boost::shared_array<char> data;
 			this->Request.BuildProxyBody("GET",ip,port,url,data,0);
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -158,8 +158,8 @@ namespace echttp
 			boost::shared_array<char> postdata(dataAry);
 			this->Request.BuildProxyBody("POST",ip,port,url,postdata,data.length());
 
-			client *client=new client(*m_ioServ);
-			client->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,client));
+			client *httpClient=new client(*m_ioServ);
+			httpClient->Send(&this->Request,boost::bind(&echttp::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
@@ -202,7 +202,7 @@ namespace echttp
 				{
 					std::string key=result[1];
 					std::string value=result[2];
-					respone->header[key]=value;
+					respone->headerMap[key]=value;
 					it=result[0].second;
 				}
 			}else
@@ -243,18 +243,18 @@ namespace echttp
 
 		boost::shared_ptr<respone> buildRespone(boost::shared_ptr<ClientResult> result)
 		{
-			boost::shared_ptr<respone> respone(new respone);
-			respone->errMsg=result->errMsg;
-			respone->errorCode=result->errorCode;
-			respone->headerText=result->header;
-			respone->msg=result->msg;
-			respone->len=result->len;
+			boost::shared_ptr<respone> httpRespone(new respone);
+			httpRespone->errMsg=result->errMsg;
+			httpRespone->errorCode=result->errorCode;
+			httpRespone->header=result->header;
+			httpRespone->body=result->msg;
+			httpRespone->len=result->len;
 
 			if(result->errorCode==0 && result->header!=""){
 				this->BuildCookie(result->header);
-				this->BuildHeader(respone,result->header);
+				this->BuildHeader(httpRespone,result->header);
 			}
-			return respone;
+			return httpRespone;
 		}
 
 	};

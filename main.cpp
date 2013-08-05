@@ -1,7 +1,7 @@
 #include <iostream>
 #include "http/echttp.hpp"
 
-use namespace echttp;
+using namespace echttp;
 
 int sendNum=0;
 int errNum=0;
@@ -12,7 +12,7 @@ int main()
 {
 	while(true)
 	{
-		boost::shared_ptr<respone> ret=http->Get("http://www.xiaoqin.in");
+		boost::shared_ptr<echttp::respone> ret=http->Get("http://www.xiaoqin.in");
 		std::string msg=ret->body.get();
 		std::cout<<msg;
 		sleep(1);
