@@ -6,3 +6,6 @@ http.exe : main.o
 main.o:main.cpp
 	g++ -g -c main.cpp -I/usr/local/ssl/include -o main.o
 
+clean:
+	rm -rf *.o
+
