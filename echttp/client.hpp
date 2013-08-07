@@ -421,9 +421,9 @@ namespace echttp
 		boost::shared_ptr<ClientResult> readBody()
 		{
 			
-			if(protocol_==0){
-				echttp::reader<tcp::socket> reader(&socket_);
 
+			if(protocol_==1){
+				echttp::reader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > reader(&ssl_sock);			
 				boost::shared_array<char> content=reader.read();
 			
 				m_respone->errorCode=0;
@@ -432,7 +432,7 @@ namespace echttp
 				m_respone->len=reader.m_bodysize;
 
 			}else{
-				echttp::reader<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > reader(&ssl_sock);
+				echttp::reader<tcp::socket> reader(&socket_);
 				boost::shared_array<char> content=reader.read();
 			
 				m_respone->errorCode=0;
