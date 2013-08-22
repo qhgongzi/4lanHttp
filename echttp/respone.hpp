@@ -1,6 +1,4 @@
-#ifndef __RESPONE_HPP__
-#define __RESPONE_HPP__
-
+#pragma once
 
 #include "common.hpp"
 #include <map>
@@ -24,5 +22,3 @@ namespace  echttp{
 
 	
 }
-
-#endif
