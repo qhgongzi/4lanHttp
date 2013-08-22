@@ -1,7 +1,3 @@
-#ifndef __READER_HPP__
-#define __READER_HPP__
-
-
 #include "common.hpp"
 #include "boost/asio.hpp"
 
@@ -152,5 +148,5 @@ namespace echttp
 
 	};
 }
-#endif
+
 

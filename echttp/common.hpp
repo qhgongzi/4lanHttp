@@ -1,5 +1,4 @@
-#ifndef __COMMON_HPP__
-#define __COMMON_HPP__
+#pragma once
 
 #include <string>
 #include "function.hpp"
@@ -20,4 +19,3 @@ namespace  echttp
 
 }
 
-#endif

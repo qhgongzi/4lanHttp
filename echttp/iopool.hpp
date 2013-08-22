@@ -1,6 +1,3 @@
-#ifndef __IOPOOL_HPP__
-#define __IOPOOL_HPP__
-
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 
@@ -55,5 +52,3 @@ namespace echttp
 }
 
 echttp::iopool *echttp::iopool::pool=NULL;
-
-#endif

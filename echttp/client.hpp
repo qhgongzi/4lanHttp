@@ -1,5 +1,4 @@
-#ifndef __CLIENT_HPP__
-#define __CLIENT_HPP__
+#pragma once
 
 #include "common.hpp"
 #include "request.hpp"
@@ -447,6 +446,3 @@ namespace echttp
 	};
 		
 }
-
-#endif
-

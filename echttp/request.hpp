@@ -1,5 +1,4 @@
-#ifndef __REQUEST_HPP__
-#define __REQUEST_HPP__
+#pragma once
 
 #include <map>
 #include "common.hpp"
@@ -185,4 +184,3 @@ namespace echttp
 
 	};
 }
-#endif

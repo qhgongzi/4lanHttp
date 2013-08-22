@@ -1,16 +1,12 @@
-#ifndef __FUNCTION_HPP__
-#define __FUNCTION_HPP__
-
+#pragma once
 
 #include <sstream>
 #include <fstream>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp> 
 #include <boost/date_time/local_time_adjustor.hpp> 
 #include <boost/date_time/c_local_time_adjustor.hpp> 
+#include <boost/locale/encoding.hpp>
 
 
 namespace echttp{
@@ -28,6 +24,16 @@ namespace echttp{
 
 		return result;
 	};
+
+	std::string Utf8Encode(const std::string& szToEncode)
+	{
+		return boost::locale::conv::to_utf<char>(szToEncode,"gb2312");
+	}
+
+    std::string Utf8Decode(const std::string& szToDecode)
+	{
+		return boost::locale::conv::from_utf(szToDecode,"gb2312");
+	}
 
 	std::string UrlEncode(const std::string& szToEncode)
 	{
@@ -107,7 +113,7 @@ namespace echttp{
 		return midStr;
 	}
 
-	std::string  replace_all(std::string&   str,const   std::string&   old_value,const   std::string&   new_value)   
+	std::string replace_all(std::string&   str,const   std::string&   old_value,const   std::string&   new_value)   
 	{   
 		for(std::string::size_type   pos(0);   pos!=std::string::npos;   pos+=new_value.length())   {   
 			if(   (pos=str.find(old_value,pos))!=std::string::npos   )   
@@ -116,8 +122,6 @@ namespace echttp{
 		}   
 		return   str;   
 	}  
-
-
 
 	std::string base64Encode(const unsigned char * Data,int DataByte)
 	{
@@ -160,7 +164,6 @@ namespace echttp{
 	    
 	}
 
-
 	std::string GetCurrentTimeGMT() 
 	{ 
 	    using namespace boost::posix_time; 
@@ -194,7 +197,6 @@ namespace echttp{
 		return substr(midstr,"value=\"","\"");
 	}
 
+
 }
 
-
-#endif
