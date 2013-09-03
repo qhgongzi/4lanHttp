@@ -8,12 +8,17 @@ int errNum=0;
 int successNum=0;
 http *chttp=new http();
 
+void back(boost::shared_ptr<respone> ptr)
+{
+	std::cout<<std::string(ptr->body.begin(),ptr->body.end());
+}
+
 int main()
 {	
 	try{
-			boost::shared_ptr<echttp::respone> ret=chttp->Get("http://www.xiaoqin.in");
-			std::string msg=ret->body.get();
-			std::cout<<msg;
+			chttp->Get("http://www.xiaoqin.in",boost::bind(back,_1));
+			//std::string msg(ret->body.begin(), ret->body.end());
+			// std::cout<<msg;
 		}catch(boost::system::system_error &e)
 		{
 			boost::system::error_code ex=e.code();

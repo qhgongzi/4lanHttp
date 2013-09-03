@@ -1,6 +1,7 @@
 http.exe : main.o 
 	g++ -g -o http.exe  main.o \
-	-L/usr/local/ssl/lib -lssl -lcrypto -lboost_system -ldl -lpthread -lboost_thread -lboost_regex
+	-L/usr/local/ssl/lib -lssl -lcrypto -lboost_system -ldl -lpthread -lboost_thread -lboost_regex \
+	 -lboost_filesystem -lboost_locale
 	#g++ main.cpp  -L/usr/local/ssl/lib -lssl -lcrypto -lboost_system -ldl -o http.exe
 
 main.o:main.cpp
