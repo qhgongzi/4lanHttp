@@ -4,6 +4,7 @@
 #include <boost/regex.hpp>
 #include "client.hpp"
 #include "iopool.hpp"
+#include "detail/up_task.hpp"
 
 namespace echttp
 {
@@ -12,6 +13,7 @@ namespace echttp
 	public:
 		request Request;
 		typedef	boost::function<void(boost::shared_ptr<respone>)> HttpCallBack;
+        typedef	boost::function<void(int type,size_t total,size_t now)> StatusCallBack;
 
 		http(void)
 		{
@@ -21,15 +23,16 @@ namespace echttp
 		~http(void){}
 
 
-		boost::shared_ptr<respone> Get(std::string url)
+        boost::shared_ptr<respone> Get(std::string url)
 		{
 			return this->_get("GET",url);
 		}
 
-        boost::shared_ptr<respone> Get(std::string ip,std::string port,std::string url)
+        boost::shared_ptr<respone> Get(std::string url,std::string save_path)
 		{
-			return this->_get("GET",ip,port,url);
+			return this->_get("GET",url,save_path);
 		}
+
 
         void Get(std::string url,HttpCallBack cb)
 		{
@@ -37,21 +40,18 @@ namespace echttp
 			return ;
 		}
 
-        void Get(std::string ip,std::string port,std::string url,HttpCallBack cb)
+        void Get(std::string url,std::string save_path,HttpCallBack cb)
 		{
-            this->_get("GET",ip,port,url,cb);
+			this->_get("GET",url,save_path,cb);
 			return ;
 		}
+
 
         boost::shared_ptr<respone> Delete(std::string url)
 		{
 			return this->_get("DELETE",url);
 		}
 
-        boost::shared_ptr<respone> Delete(std::string ip,std::string port,std::string url)
-		{
-			return this->_get("DELETE",ip,port,url);
-		}
 
         void Delete(std::string url,HttpCallBack cb)
 		{
@@ -59,21 +59,11 @@ namespace echttp
 			return ;
 		}
 
-        void Delete(std::string ip,std::string port,std::string url,HttpCallBack cb)
-		{
-            this->_get("DELETE",ip,port,url,cb);
-			return ;
-		}
-
 
 		boost::shared_ptr<respone> Post(std::string url,std::string data)
 		{
-			return this->_post("POST",url,data);
-		}
 
-		boost::shared_ptr<respone> Post(std::string ip,std::string port,std::string url,std::string data)
-		{
-			return this->_post("POST",ip,port,url,data);
+			return this->_post("POST",url,data);
 		}
 
 		void Post(std::string url,std::string data,HttpCallBack cb)
@@ -82,33 +72,18 @@ namespace echttp
 			return ;
 		}
 
-		void Post(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
+        void Post(std::string url,std::vector<char> data,HttpCallBack cb)
 		{
-			this->_post("POST",ip,port,url,data,cb);
+			this->_post("POST",url,data,cb);
 			return ;
 		}
 
-        void Post(std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
-		{
-			this->_post("POST",url,data,dataLen,cb);
-			return ;
-		}
-
-		void Post(std::string ip,std::string port,std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
-		{
-			this->_post("POST",ip,port,url,data,dataLen,cb);
-			return ;
-		}
 
 		boost::shared_ptr<respone> Put(std::string url,std::string data)
 		{
 			return this->_post("PUT",url,data);
 		}
 
-		boost::shared_ptr<respone> Put(std::string ip,std::string port,std::string url,std::string data)
-		{
-			return this->_post("PUT",ip,port,url,data);
-		}
 
 		void Put(std::string url,std::string data,HttpCallBack cb)
 		{
@@ -116,43 +91,83 @@ namespace echttp
 			return ;
 		}
 
-		void Put(std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
+
+        void Put(std::string url,std::vector<char> data,HttpCallBack cb)
 		{
-			this->_post("PUT",ip,port,url,data,cb);
+			this->_post("PUT",url,data,cb);
 			return ;
 		}
 
-        void Put(std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
+        ///异步PUT请求，put的数据从文件读取
+        // @url 请求url
+        // @file_path 发送的文件路径
+        // @cb 异步回调函数
+        // @status_cb 写入，读取的状态回调。
+        void PutFromFile(std::string url,std::string file_path,HttpCallBack cb,size_t pos=0,size_t size=0)
 		{
-			this->_post("PUT",url,data,dataLen,cb);
+            this->_post_file("PUT",url,file_path,cb,pos,size);
 			return ;
 		}
 
-		void Put(std::string ip,std::string port,std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
+        ///同步PUT请求，put的数据从文件读取
+        // @url 请求url
+        // @file_path 发送的文件路径
+        // @ status_cb 写入，读取的状态回调。
+        boost::shared_ptr<respone> PutFromFile(std::string url,std::string file_path,size_t pos=0,size_t size=0)
 		{
-			this->_post("PUT",ip,port,url,data,dataLen,cb);
+			return this->_post_file("PUT",url,file_path,pos,size);
+		}
+
+        boost::shared_ptr<respone> PutToFile(std::string url,std::string data,std::string save_path)
+		{
+			return this->_post("PUT",url,data,save_path);
+		}
+
+        void PutToFile(std::string url,std::string data,std::string save_path,HttpCallBack cb)
+		{
+            this->_post("PUT",url,data,save_path,cb);
 			return ;
 		}
 
-		void MessageBack(boost::shared_ptr<ClientResult> result,HttpCallBack cb,client *client)
+        ///异步PUT请求，并将结果写入文件
+        // @url 请求url
+        // @data 发送的vector<char>数据
+        // @save_path 返回数据保存的文件路径
+        // @cb 异步回调函数
+        // @ status_cb 写入，读取的状态回调。
+        void PutToFile(std::string url,std::vector<char> data,std::string save_path,HttpCallBack cb)
 		{
-			boost::shared_ptr<respone> respone=this->buildRespone(result);
+			this->_post("PUT",url,data,save_path,cb);
+			return ;
+		}
+
+		//http client的回调，删除httpclient
+		void MessageBack(boost::shared_ptr<respone> result,HttpCallBack cb,client *httpclient)
+		{
 
 			if(cb!=NULL)
 			{
-				cb(respone);
+				cb(result);
 			}
-			if(client!=NULL)
+
+			if(httpclient)
 			{
-				delete client;
-				client=NULL;
+				delete httpclient;
 			}
+			
 		}
+
+        void RegisterStatusCallBack(StatusCallBack cb)
+        {
+            this->m_status_callback=cb;
+        }
 
 		
 
 	private:
 		boost::asio::io_service *m_ioServ;
+        StatusCallBack m_status_callback;
+
 
 		void BuildHeader(boost::shared_ptr<respone> respone,std::string header)
 		{
@@ -160,7 +175,7 @@ namespace echttp
 			{
 				std::string h=header.substr(header.find(" ")+1);
 				h=h.substr(0,h.find(" "));
-				respone->statusCode=convert<int,std::string>(h);
+				respone->status_code=convert<int,std::string>(h);
 
 				boost::smatch result;
 				std::string regtxt("\\b(\\w+?): (.*?)\r\n");
@@ -173,194 +188,283 @@ namespace echttp
 				{
 					std::string key=result[1];
 					std::string value=result[2];
-					respone->headerMap[key]=value;
+					//respone->headerMap[key]=value;
 					it=result[0].second;
 				}
 			}else
 			{
-				respone->statusCode=-1;
+				respone->status_code=-1;
 			}
 		}
 
-		void BuildCookie(std::string header)
-		{
-			boost::smatch result;
-			std::string regtxt("Set-Cooki.*? (.*?)=(.*?);");
-			boost::regex rx(regtxt);
 
-			std::string::const_iterator it=header.begin();
-			std::string::const_iterator end=header.end();
-
-			while (regex_search(it,end,result,rx))
-			{
-				std::string cookie_key=result[1];
-				std::string cookie_value=result[2];
-
-				if (Request.m_cookies.find(cookie_key)==std::string::npos)
-				{
-					Request.m_cookies+=cookie_key+"="+cookie_value+"; ";
-				}
-				else
-				{
-					std::string reg="("+cookie_key+")=(.*?);";
-					boost::regex regrep(reg,    boost::regex::icase|boost::regex::perl);
-					Request.m_cookies=boost::regex_replace(Request.m_cookies,regrep,"$1="+cookie_value+";");
-				}
-
-				it=result[0].second;
-			}
-
-		}
-
-		boost::shared_ptr<respone> buildRespone(boost::shared_ptr<ClientResult> result)
-		{
-			boost::shared_ptr<respone> httpRespone(new respone);
-			httpRespone->errMsg=result->errMsg;
-			httpRespone->errorCode=result->errorCode;
-			httpRespone->header=result->header;
-			httpRespone->body=result->msg;
-			httpRespone->len=result->len;
-
-			if(result->errorCode==0 && result->header!=""){
-				this->BuildCookie(result->header);
-				this->BuildHeader(httpRespone,result->header);
-			}
-			return httpRespone;
-		}
-
-
-        //����get����,delete֮���
+        //类似get方法,delete之类的
         boost::shared_ptr<respone> _get(std::string method,std::string url)
 		{
-			boost::shared_array<char> data;
-			this->Request.BuildBody(method,url,data,0);
 
-			client client(*m_ioServ);
+			up_task task=this->Request.make_task(method,url);
 
-			boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-			boost::shared_ptr<respone> respone=this->buildRespone(result);
+            boost::shared_ptr<respone> respone_(new respone());
 
-			return respone;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client client(*m_ioServ,task,respone_);
+
+			boost::shared_ptr<respone> result=client.send();
+
+			return result;
 
 		}
 
-        //������������get����
-        boost::shared_ptr<respone> _get(std::string method,std::string ip,std::string port,std::string url)
+        //get to filepath
+        boost::shared_ptr<respone> _get(std::string method,std::string url,std::string save_path)
 		{
-			boost::shared_array<char> data;
-			this->Request.BuildProxyBody(method,ip,port,url,data,0);
 
-			client client(*m_ioServ);
+			up_task task=this->Request.make_task(method,url);
 
-			boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-			boost::shared_ptr<respone> respone=this->buildRespone(result);
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
 
-			return respone;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            } //注册读写状态回调
+
+			client client(*m_ioServ,task,respone_);
+
+			boost::shared_ptr<respone> result=client.send();
+
+			return result;
+
 		}
+
 
         void _get(std::string method,std::string url,HttpCallBack cb)
 		{
-			boost::shared_array<char> data;
-			this->Request.BuildBody(method,url,data,0);
+			up_task task=this->Request.make_task(method,url);
 
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
-        void _get(std::string method,std::string ip,std::string port,std::string url,HttpCallBack cb)
+        void _get(std::string method,std::string url,std::string save_path,HttpCallBack cb)
 		{
-			boost::shared_array<char> data;
-			this->Request.BuildProxyBody(method,ip,port,url,data,0);
+			up_task task=this->Request.make_task(method,url);
 
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+			client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
 			return ;
 		}
 
-        //����post����
+
+
+        //类似post方法
         boost::shared_ptr<respone> _post(std::string method,std::string url,std::string data)
 		{
-			char * dataAry=new char [data.length()];
-			memset(dataAry,0,data.length());
-			memcpy(dataAry,data.c_str(),data.length());
+			up_task  task=this->Request.make_task(method,url,std::vector<char>(data.begin(),data.end()));
 
-			boost::shared_array<char> postdata(dataAry);
-			this->Request.BuildBody(method,url,postdata,data.length());
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
 
-			client client(*m_ioServ);
+            client client(*m_ioServ,task,respone_);
 
-			boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-			boost::shared_ptr<respone> respone=this->buildRespone(result);
+			boost::shared_ptr<respone> respone=client.send();
 
 			return respone;
 		}
 
-        //������������post����
-        boost::shared_ptr<respone> _post(std::string method,std::string ip,std::string port,std::string url,std::string data)
+        boost::shared_ptr<respone> _post(std::string method,std::string url,std::string data,std::string save_path)
 		{
-			char * dataAry=new char [data.length()];
-			memset(dataAry,0,data.length());
-			memcpy(dataAry,data.c_str(),data.length());
+			up_task  task=this->Request.make_task(method,url,std::vector<char>(data.begin(),data.end()));
 
-			boost::shared_array<char> postdata(dataAry);
-			this->Request.BuildProxyBody(method,ip,port,url,postdata,data.length());
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
 
-			client client(*m_ioServ);
+            client client(*m_ioServ,task,respone_);
 
-			boost::shared_ptr<ClientResult> result=client.Send(&this->Request);
-			boost::shared_ptr<respone> respone=this->buildRespone(result);
+			boost::shared_ptr<respone> respone=client.send();
 
 			return respone;
 		}
+
+        boost::shared_ptr<respone> _post_file(std::string method,std::string url,std::string file_path,size_t pos=0,size_t size=0)
+		{
+			up_task  task=this->Request.make_file_task(method,url,std::vector<char>(file_path.begin(),file_path.end()),pos,size);
+
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client client(*m_ioServ,task,respone_);
+
+			boost::shared_ptr<respone> respone=client.send();
+
+			return respone;
+		}
+
+        boost::shared_ptr<respone> _post_file(std::string method,std::string url,std::string file_path,std::string save_path,size_t pos=0,size_t size=0)
+		{
+			up_task  task=this->Request.make_file_task(method,url,std::vector<char>(file_path.begin(),file_path.end()),pos,size);
+
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client client(*m_ioServ,task,respone_);
+
+			boost::shared_ptr<respone> respone=client.send();
+
+			return respone;
+		}
+
 
         void _post(std::string method,std::string url,std::string data,HttpCallBack cb)
 		{
-			char * dataAry=new char [data.length()];
-			memset(dataAry,0,data.length());
-			memcpy(dataAry,data.c_str(),data.length());
+			up_task  task=this->Request.make_task(method,url,std::vector<char>(data.begin(),data.end()));
 
-			boost::shared_array<char> postdata(dataAry);
-			this->Request.BuildBody(method,url,postdata,data.length());
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
 
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
 			return ;
 		}
 
-
-		void _post(std::string method,std::string ip,std::string port,std::string url,std::string data,HttpCallBack cb)
+        void _post(std::string method,std::string url,std::string data,std::string save_path,HttpCallBack cb)
 		{
-			char * dataAry=new char [data.length()];
-			memset(dataAry,0,data.length());
-			memcpy(dataAry,data.c_str(),data.length());
+			up_task  task=this->Request.make_task(method,url,std::vector<char>(data.begin(),data.end()));
 
-			boost::shared_array<char> postdata(dataAry);
-			this->Request.BuildProxyBody(method,ip,port,url,postdata,data.length());
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
 
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
 			return ;
 		}
 
-        void _post(std::string method,std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
+        void _post_file(std::string method,std::string url,std::string file_path,HttpCallBack cb,size_t pos=0,size_t size=0)
 		{
-			this->Request.BuildBody(method,url,data,dataLen);
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+			up_task  task=this->Request.make_file_task(method,url,std::vector<char>(file_path.begin(),file_path.end()),pos,size);
+
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
 			return ;
 		}
 
-        void _post(std::string method,std::string ip,std::string port,std::string url,boost::shared_array<char> data,size_t dataLen,HttpCallBack cb)
+        void _post_file(std::string method,std::string url,std::string file_path,std::string save_path,HttpCallBack cb,size_t pos=0,size_t size=0)
 		{
-			
-			this->Request.BuildProxyBody(method,ip,port,url,data,dataLen);
+            up_task  task=this->Request.make_file_task(method,url,std::vector<char>(file_path.begin(),file_path.end()),pos,size);
 
-			client *httpClient=new client(*m_ioServ);
-			httpClient->Send(&this->Request,boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
 			return ;
 		}
 
+        void _post(std::string method,std::string url,std::vector<char> data,HttpCallBack cb)
+		{
+			up_task  task=this->Request.make_task(method,url,data);
+
+            boost::shared_ptr<respone> respone_(new respone());
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
+			return ;
+		}
+
+        void _post(std::string method,std::string url,std::vector<char> data,std::string save_path,HttpCallBack cb)
+		{
+			up_task  task=this->Request.make_task(method,url,data);
+
+            boost::shared_ptr<respone> respone_(new respone());
+            respone_->save_path=save_path;
+            if(m_status_callback)
+            {
+                respone_->register_notify_callback(m_status_callback);
+                m_status_callback=0;
+            }
+            client* httpClient=new client(*m_ioServ,task,respone_);
+
+			httpClient->send(boost::bind(&http::MessageBack,this,_1,cb,httpClient));
+
+			return ;
+		}
 
 
 	};
