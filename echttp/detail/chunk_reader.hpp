@@ -1,5 +1,6 @@
-#include "common.hpp"
+#include "../common.hpp"
 #include "boost/asio.hpp"
+#include <queue>
 
 namespace echttp
 {
@@ -13,9 +14,10 @@ public:
 
 	}
 
-	~chunk_reader();
+	~chunk_reader()
+	{}
 
-	void push(const std::vector<char> & buf)
+	void push(std::vector<char>  buf)
 	{
 		for (std::vector<char>::iterator i = buf.begin(); i != buf.end(); ++i)
 		{
@@ -29,15 +31,18 @@ public:
 		{
 			while(!this->recved_size_delimter() && m_buf_queue.size()>0)
 			{
-				this->m_buf_delimter.push_back(m_buf_queue.pop());
+				this->m_buf_delimter.push_back(m_buf_queue.front());
+				m_buf_queue.pop();
 			}
 
 			if(this->recved_size_delimter())
 			{
-				m_chunk_rest=strtol(m_buf_delimter.c_str(),NULL,16)+2;//+2 because a chunk with a end of \r\n delimter;
-				if(m_chunk_rest==0)
+				std::string len(m_buf_delimter.begin(), m_buf_delimter.end());
+				m_chunk_rest=strtol(len.c_str(),NULL,16)+2;//+2 because a chunk with a end of \r\n delimter;
+				m_buf_delimter.clear();
+				if(m_chunk_rest==2)
 				{
-					this->m_chunk_end==true;
+					this->m_chunk_end=true;
 					return std::vector<char>();
 				}
 				else
@@ -81,7 +86,8 @@ private:
 
 		for (int i = 0; i < size; ++i)
 		{
-			v.push_back(m_buf_queue.pop());
+			v.push_back(m_buf_queue.front());
+			m_buf_queue.pop();
 		}
 
 		return v;
@@ -89,7 +95,10 @@ private:
 
 	bool recved_size_delimter()
 	{
-		return (m_buf_delimter.back()=='\n')
+		if(m_buf_delimter.size()>0)
+			return (m_buf_delimter.back()=='\n');
+		else
+			return false;
 	}
 
 
