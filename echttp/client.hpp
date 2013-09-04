@@ -434,8 +434,6 @@ namespace echttp
 			size_t read_size=m_chunk_rest_size<m_buffer_size ?m_chunk_rest_size:m_buffer_size;
 			read_size-=respone_.size();
 
-			m_chunk_rest_size-=read_size;
-
 			if(protocol_==1)
 			{
 
@@ -465,64 +463,136 @@ namespace echttp
 		if(!err||err.value()==2)
 		{
 			size_t buf_size=respone_.size();
-			stze_t read_size=bytes_transfarred;
 
 			std::istream response_stream(&respone_);
 			response_stream.unsetf(std::ios_base::skipws);//asio::streambuf 转换成istream 并且忽略空]
 
-			
-			std::vector<char> buf;
-			buf.resize(read_size);
-
-			//@todo continue to check this place
-
-			m_chunk_rest_size-=read_size;
-			response_stream.read(&buf.front(),read_size);
-
-			if (m_chunk_rest_size==0)
+			if (buf_size<=m_chunk_rest_size) //read less than a chunk
 			{
-				m_respone->save_body(std::vector<char>(buf.begin(),buf.end()-2));
-			}else
-			{
-				m_respone->save_body(buf);
+				std::vector<char> buf;
+				buf.resize(buf_size);
+
+				//@todo continue to check this place
+
+				m_chunk_rest_size-=buf_size;
+				response_stream.read(&buf.front(),buf_size);
+
+				if (m_chunk_rest_size==0)
+				{
+					m_respone->save_body(std::vector<char>(buf.begin(),buf.end()-2));
+				}else
+				{
+					m_respone->save_body(buf);
+				}
+				
+
+				if(m_chunk_rest_size==0)//这个块已经读完
+				{
+					if(protocol_==1)
+					{
+
+						boost::asio::async_read_until(ssl_sock,respone_,"\r\n"
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+
+					}
+					else
+					{
+						boost::asio::async_read_until(socket_,respone_,"\r\n"
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+					}
+				}else
+				{
+					size_t read_size=m_chunk_rest_size<m_buffer_size?m_chunk_rest_size:m_buffer_size;
+
+					if(protocol_==1)
+					{
+
+						boost::asio::async_read(ssl_sock,respone_,boost::asio::transfer_at_least(read_size)
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+
+					}
+					else
+					{
+						boost::asio::async_read(socket_,respone_,boost::asio::transfer_at_least(read_size)
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+					}
+				}
 			}
+			else //read more than a chunk
+			{
+
+				std::vector<char> buf;
+				buf.resize(buf_size);
+
+				
+				response_stream.read(&buf.front(),buf_size);
+
+				std::vector<char> next_chunk_buf(buf.begin()+m_chunk_rest_size,buf.end());
+
+				if (m_chunk_rest_size>0)
+				{
+					m_respone->save_body(std::vector<char>(buf.begin(),buf.begin()+m_chunk_rest_size-2));
+					m_chunk_rest_size=0;
+				}
+
+				bool has_read_next=false;
+
+				for(size_t i=0;i<next_chunk_buf.size();i++)
+				{
+					if(next_chunk_buf[i]=='\r' && next_chunk_buf[i+1]=='\n')
+					{
+						std::string chunk_len(next_chunk_buf.begin(),next_chunk_buf.begin()+i+2);
+						m_chunk_rest_size=strtol(chunk_len.c_str(),NULL,16)+2;
+
+						m_respone->save_body(std::vector<char>(next_chunk_buf.begin()+chunk_len.size(),buf.end()));
+						m_chunk_rest_size-=(next_chunk_buf.size()-chunk_len.size());
+
+						size_t read_size=m_chunk_rest_size<m_buffer_size?m_chunk_rest_size:m_buffer_size;
+
+						if(protocol_==1)
+						{
+
+							boost::asio::async_read(ssl_sock,respone_,boost::asio::transfer_at_least(read_size)
+								,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+								,boost::asio::placeholders::bytes_transferred));
+
+						}
+						else
+						{
+							boost::asio::async_read(socket_,respone_,boost::asio::transfer_at_least(read_size)
+								,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+								,boost::asio::placeholders::bytes_transferred));
+						}
+						has_read_next=true;
+						break;
+					}
+
+				}
+
+				if(!has_read_next)
+				{
+					if(protocol_==1)
+					{
+
+						boost::asio::async_read_until(ssl_sock,respone_,"\r\n"
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+
+					}
+					else
+					{
+						boost::asio::async_read_until(socket_,respone_,"\r\n"
+							,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
+							,boost::asio::placeholders::bytes_transferred));
+					}
+				}
+
+			}	
 			
-
-			if(m_chunk_rest_size==0)//这个块已经读完
-			{
-				if(protocol_==1)
-				{
-
-					boost::asio::async_read_until(ssl_sock,respone_,"\r\n"
-						,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
-						,boost::asio::placeholders::bytes_transferred));
-
-				}
-				else
-				{
-					boost::asio::async_read_until(socket_,respone_,"\r\n"
-						,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
-						,boost::asio::placeholders::bytes_transferred));
-				}
-			}else
-			{
-				size_t read_size=m_chunk_rest_size<m_buffer_size?m_chunk_rest_size:m_buffer_size;
-
-				if(protocol_==1)
-				{
-
-					boost::asio::async_read(ssl_sock,respone_,boost::asio::transfer_at_least(read_size)
-						,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
-						,boost::asio::placeholders::bytes_transferred));
-
-				}
-				else
-				{
-					boost::asio::async_read(socket_,respone_,boost::asio::transfer_at_least(read_size)
-						,boost::bind(&client::handle_chunk_read,this,boost::asio::placeholders::error
-						,boost::asio::placeholders::bytes_transferred));
-				}
-			}
 			
 
 		}else{
