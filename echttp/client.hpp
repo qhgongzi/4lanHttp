@@ -86,7 +86,7 @@ namespace echttp
 			ssl_sock(socket_,ctx),
 			deadline_(io_service),
             m_task(task),
-            m_buffer_size(20),
+            m_buffer_size(10240),
             m_respone(respone)
 		{
 			nTimeOut=10000;
@@ -525,7 +525,8 @@ namespace echttp
 
 				while (read_size<need_read_size)
 				{
-					std::vector<char> buf=reader.syn_read(m_buffer_size);
+					size_t read_num=m_buffer_size<need_read_size?m_buffer_size:need_read_size;
+					std::vector<char> buf=reader.syn_read(read_num);
 					m_respone->save_body(buf);
 					read_size+=buf.size();
 

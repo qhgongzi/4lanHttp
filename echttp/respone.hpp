@@ -35,6 +35,8 @@ public:
 
     void register_notify_callback(StatusCallBack cb);
 
+	std::string as_string();
+
 private:
     StatusCallBack m_status_cb;
 
@@ -116,6 +118,11 @@ void respone::notify_status(int type,size_t total,size_t now)
     {
         this->m_status_cb(type,total,now);
     }
+}
+
+std::string respone::as_string()
+{
+	return std::string(this->body.begin(),this->body.end());
 }
 
 	

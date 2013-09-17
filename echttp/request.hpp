@@ -50,6 +50,11 @@ public:
 	{
 		this->m_defalut_connection=connection;
 	}
+
+	void set_defalut_referer(std::string referer)
+	{
+		this->m_defalut_referer=referer;
+	}
     
 
     up_task make_task(std::string method,const url &u)
@@ -98,6 +103,7 @@ private:
     std::string m_defalut_user_agent;
     std::string m_defalut_connection;
     std::string m_defalut_accept;
+	std::string m_defalut_referer;
 
     std::string get_header(std::string method,const url &u)
     {
@@ -139,6 +145,11 @@ private:
         if(this->m_header.find("Accept")=="")
         {
             this->m_header.insert("Accept",this->m_defalut_accept);
+        }
+
+		if(this->m_header.find("Referer")=="")
+        {
+            this->m_header.insert("Referer",this->m_defalut_referer);
         }
     }
 

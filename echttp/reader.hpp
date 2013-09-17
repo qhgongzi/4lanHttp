@@ -39,7 +39,8 @@ public:
 	reader(Tsock *sock,boost::asio::streambuf &buf,size_t buf_size):
 		m_chunk_end(false),
         respone_(buf),
-		buffer_size(buf_size)
+		buffer_size(buf_size),
+		chunk_remain_size(0)
 	{
 		this->m_sock=sock;
 	}
